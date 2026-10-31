@@ -4,7 +4,7 @@
 - **Date:** 2026-10-31
 - **Repos:** auto-mate, henka-council (plugin id `henkaten-council`), trine-eval, cloud-catcher (this repo)
 - **Companions:** `decisions/ADR-0001..0006`, `plan/sprints.json` (machine-readable decomposition), `manifest.json`, `index/work-record.schema.json`, `index/diagnostic-event.schema.json`, `archivist/briefing-task.md`
-- **Ratification:** ADR-0001 to ADR-0005 ratified 2026-10-31. ADR-0006 (diagnostics) added the same day at the human's request and awaiting ratification.
+- **Ratification:** ADR-0001 to ADR-0006 ratified 2026-10-31 (ADR-0006, diagnostics, was added the same day at the human's request).
 
 The plan builds on what the four repos already contain and on the August 2026 stack review
 in auto-mate (`docs/agent-stack-review-2026-08.md`). It adds no new vocabulary: every
@@ -334,7 +334,7 @@ run records. Phase 6 starts once the work record exists.
 
 | When | Decision |
 |---|---|
-| Now | Ratify ADR-0006 (ADR-0001 to ADR-0005 ratified 2026-10-31) |
+| Now | none open; ADR-0001 to ADR-0006 ratified 2026-10-31 |
 | Phase 0 | Which surface should spend the API credits |
 | Phase 1 | The five validation tasks; rubric weights and hard thresholds |
 | Phase 3 | Drive layout, archivist schedule, connector grant |

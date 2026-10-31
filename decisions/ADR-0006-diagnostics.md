@@ -1,6 +1,6 @@
 # ADR 0006: Diagnostics: one event schema, two capture paths, one place to study
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session), at the human's request after ratifying ADR-0001 to 0005
 - **Scope:** What the stack records about its own behavior (tokens, cost, time, tool use, outcomes), where, with what privacy, and how the record drives improvement
