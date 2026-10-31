@@ -1,6 +1,6 @@
 # ADR 0001: Runtime stays on Claude Code through Phase 4; revisit for the headless path at the Phase 5 gate
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session)
 - **Scope:** Which runtime hosts each layer of the stack for v1, and the criteria for changing that
@@ -77,3 +77,18 @@ Facts that constrain the choice (checked 2026-10-31):
 - Phase 0 billing check: run one headless task with the API key set, confirm the usage line
   in the Console, and record the result here as an addendum with the date.
 - Phase 5 gate: the five criteria above, each with its measurement cited.
+
+## Amendments
+
+### A1 (2026-10-31): two facts corrected after ratification
+
+- `claude -p` documents `--max-budget-usd` and `--max-turns`, and its `--output-format json`
+  result carries `total_cost_usd` with a per-model breakdown. So per-task dollar caps do
+  **not** wait for a Managed Agents or SDK path; sprint `P5-AM-4` uses them directly, and
+  sprint `P0-AM-0` captures the usage they report.
+- Claude Code documents OpenTelemetry export of metrics (`claude_code.token.usage`,
+  `claude_code.cost.usage`, with `model`, `effort`, `agent.name`, `skill.name`,
+  `plugin.name`, `mcp_tool.name` attributes) and events (`api_request`, `tool_result`,
+  `tool_decision`, `api_error`, `user_prompt` redacted by default). The August review's
+  statement that no such export was documented no longer holds. This does not change the
+  runtime decision; it is the basis of ADR-0006's second tier.

@@ -1,6 +1,6 @@
 # ADR 0005: What cloud-catcher is and is not
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session)
 - **Scope:** The boundary of this repository

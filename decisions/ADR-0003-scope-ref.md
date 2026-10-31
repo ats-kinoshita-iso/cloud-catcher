@@ -1,6 +1,6 @@
 # ADR 0003: A ratified approval entry is the precondition for execution
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session)
 - **Scope:** The Confirm seam between scoping (drafts, plans, conversation) and execution (auto-mate)

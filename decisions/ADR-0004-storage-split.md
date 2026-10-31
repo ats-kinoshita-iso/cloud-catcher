@@ -1,6 +1,6 @@
 # ADR 0004: Git is the system of record; Drive is the reading and capture plane
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session)
 - **Scope:** Where artifacts, state, captures and briefings live; who writes where; what retrieval exists in v1

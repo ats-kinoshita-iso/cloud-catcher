@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "diagnostic-event.schema.json",
+  "title": "DiagnosticEvent",
+  "description": "One diagnostic event about the stack's own behavior: a session, a headless run, a gate verdict, a sprint evaluation, a compaction, a projection-cost measurement, a retrieval miss. Written by the council's SessionEnd hook (.council/diagnostics.jsonl), derived by the archivist from auto-mate run records, and copied into index/diagnostics/events-<YYYY-MM>.jsonl. Never contains prompt or response bodies. See decisions/ADR-0006-diagnostics.md.",
+  "type": "object",
+  "required": ["event_id", "ts", "source", "kind", "project", "schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "event_id": { "type": "string", "description": "UUID; the deduplication key when events are copied into the index." },
+    "ts": { "type": "string", "format": "date-time", "description": "When the measured thing ended, UTC." },
+    "source": {
+      "type": "string",
+      "enum": ["claude-code-session", "auto-mate", "trine-eval", "henkaten-council", "archivist", "otel"],
+      "description": "Which producer wrote the event."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["session", "run", "crew", "gate", "sprint-eval", "compaction", "subagent", "projection-cost", "retrieval-miss", "archivist-cycle"],
+      "description": "What the event measures."
+    },
+    "project": { "type": "string", "description": "Repository name as listed in workspace/repos.json." },
+
+    "session_id": { "type": ["string", "null"], "description": "Claude Code session id; the join key across audit entries, transcripts, run records and OTel." },
+    "parent_session_id": { "type": ["string", "null"], "description": "For a headless crew or gate: the session that invoked automate, when known." },
+    "task_id": { "type": ["string", "null"], "description": "auto-mate task id." },
+    "run_path": { "type": ["string", "null"], "description": "Path of the persisted run record this event was derived from." },
+    "sprint": { "type": ["integer", "string", "null"], "description": "Sprint context at the time, from .harness/sprint-state.json." },
+    "phase": { "type": ["integer", "null"] },
+    "agent_name": { "type": ["string", "null"], "description": "Subagent or gate name when the event is about one agent." },
+    "tool_use_id": { "type": ["string", "null"] },
+    "henka_ids": { "type": "array", "items": { "type": "string", "pattern": "^HK-[0-9]{4,}$" } },
+    "approval_id": { "type": ["string", "null"], "pattern": "^APPR-[0-9]{4,}$" },
+    "git_branch": { "type": ["string", "null"] },
+    "head": { "type": ["string", "null"], "description": "Commit sha at the end of the measured thing." },
+
+    "model": { "type": ["string", "null"] },
+    "effort": { "type": ["string", "null"], "enum": ["low", "medium", "high", "xhigh", "max", null] },
+    "usage": { "$ref": "#/definitions/usage" },
+    "usage_by_model": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/usage" },
+      "description": "Per-model totals; keys are model ids."
+    },
+    "sidechain_usage": { "$ref": "#/definitions/usage", "description": "The share of usage attributable to subagents (transcript entries with isSidechain true)." },
+    "cost_usd": { "type": ["number", "null"], "minimum": 0 },
+    "cost_source": {
+      "type": ["string", "null"],
+      "enum": ["claude-code-estimate", "price-table", "backend", null],
+      "description": "claude-code-estimate: total_cost_usd reported by claude -p; price-table: computed from tokens and a price table; backend: from the OTel backend or Console."
+    },
+    "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "api_duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "thinking_duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "num_turns": { "type": ["integer", "null"], "minimum": 0 },
+
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_calls": { "type": "integer", "minimum": 0 },
+        "tool_calls_by_tool": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "tool_failures": { "type": "integer", "minimum": 0 },
+        "subagents": { "type": "integer", "minimum": 0 },
+        "compactions": { "type": "integer", "minimum": 0 },
+        "api_retries": { "type": "integer", "minimum": 0 },
+        "permission_denials": { "type": "integer", "minimum": 0 },
+        "andon_signals": { "type": "integer", "minimum": 0 },
+        "henka_records": { "type": "integer", "minimum": 0 },
+        "criteria_total": { "type": "integer", "minimum": 0 },
+        "criteria_passed": { "type": "integer", "minimum": 0 },
+        "trials": { "type": "integer", "minimum": 0 },
+        "rounds": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "outcome": {
+      "type": ["string", "null"],
+      "description": "Terminal state in the producer's own vocabulary: shipped, gated, no_changes, failed for runs; PASS, FAIL, PARTIAL for sprint evals; VERDICT: PASS or FAIL for gates; ended, interrupted for sessions."
+    },
+    "outcome_reason": { "type": ["string", "null"], "maxLength": 160 },
+    "cap_hit": { "type": ["string", "null"], "enum": ["none", "time", "turns", "budget", "tokens", "context", null] },
+
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "maxLength": 80 },
+      "description": "Free-form string labels: cynefin, loop_shape, rubric, project_type, crew_backend, permission_mode, claude_code_version, trigger (scheduled or manual)."
+    },
+    "summary": { "type": ["string", "null"], "maxLength": 160, "description": "Optional one-line human note. Never a prompt or a response." }
+  },
+  "definitions": {
+    "usage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens"],
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "cache_read_input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_input_tokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

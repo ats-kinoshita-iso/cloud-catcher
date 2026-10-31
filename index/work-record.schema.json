@@ -4,102 +4,418 @@
   "title": "WorkRecord",
   "description": "Cross-project work record built by scripts/build-index.py from sibling repos' .harness/ and .council/ state and auto-mate run records. Read-only aggregate; sources of truth stay in the repos. See index/README.md for field provenance and signal derivation.",
   "type": "object",
-  "required": ["generated_at", "generator", "projects", "decisions_pending"],
+  "required": [
+    "generated_at",
+    "generator",
+    "projects",
+    "decisions_pending"
+  ],
   "additionalProperties": false,
   "properties": {
-    "generated_at": { "type": "string", "format": "date-time" },
-    "generator": { "type": "string", "description": "Script name and version that produced this file." },
-    "projects": { "type": "array", "items": { "$ref": "#/definitions/project" } },
-    "decisions_pending": { "type": "array", "items": { "$ref": "#/definitions/pending" } }
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "type": "string",
+      "description": "Script name and version that produced this file."
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/project"
+      }
+    },
+    "decisions_pending": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/pending"
+      }
+    }
   },
   "definitions": {
     "project": {
       "type": "object",
-      "required": ["name", "repo", "head", "harness", "council", "runs", "inbox", "signals"],
+      "required": [
+        "name",
+        "repo",
+        "head",
+        "harness",
+        "council",
+        "runs",
+        "inbox",
+        "signals"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "repo": { "type": "string", "format": "uri" },
-        "default_branch": { "type": "string" },
-        "head": { "type": "string", "description": "Commit sha of the checkout that was indexed." },
+        "name": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string",
+          "format": "uri"
+        },
+        "default_branch": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string",
+          "description": "Commit sha of the checkout that was indexed."
+        },
         "harness": {
           "type": "object",
-          "required": ["present"],
+          "required": [
+            "present"
+          ],
           "properties": {
-            "present": { "type": "boolean" },
-            "project_type": { "type": ["string", "null"] },
-            "rubric": { "type": ["string", "null"] },
-            "current_sprint": { "type": ["integer", "string", "null"] },
-            "current_phase": { "type": ["integer", "null"] },
-            "last_sprint_status": { "type": ["string", "null"], "enum": ["PASS", "FAIL", "PARTIAL", "HALTED", null] },
-            "last_updated": { "type": ["string", "null"], "format": "date-time" },
-            "resumption_note": { "type": ["string", "null"] }
+            "present": {
+              "type": "boolean"
+            },
+            "project_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rubric": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "current_sprint": {
+              "type": [
+                "integer",
+                "string",
+                "null"
+              ]
+            },
+            "current_phase": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "last_sprint_status": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "PASS",
+                "FAIL",
+                "PARTIAL",
+                "HALTED",
+                null
+              ]
+            },
+            "last_updated": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "resumption_note": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         },
         "council": {
           "type": "object",
-          "required": ["present"],
+          "required": [
+            "present"
+          ],
           "properties": {
-            "present": { "type": "boolean" },
-            "effective_autonomy": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 },
-            "autonomy_reason": { "type": ["string", "null"] },
-            "restored_when": { "type": ["string", "null"] },
-            "open_henka": { "type": "integer", "minimum": 0 },
-            "open_henka_high_risk": { "type": "integer", "minimum": 0 },
-            "pending_proposals": { "type": "array", "items": { "type": "string" } },
+            "present": {
+              "type": "boolean"
+            },
+            "effective_autonomy": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 5
+            },
+            "autonomy_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "restored_when": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "open_henka": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "open_henka_high_risk": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pending_proposals": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "last_prebrief": {
-              "type": ["object", "null"],
+              "type": [
+                "object",
+                "null"
+              ],
               "properties": {
-                "sprint": { "type": "integer" },
-                "cynefin": { "type": "string", "enum": ["clear", "complicated", "complex", "chaotic"] },
-                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-                "expected_loop_shape": { "type": "string" }
+                "sprint": {
+                  "type": "integer"
+                },
+                "cynefin": {
+                  "type": "string",
+                  "enum": [
+                    "clear",
+                    "complicated",
+                    "complex",
+                    "chaotic"
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "expected_loop_shape": {
+                  "type": "string"
+                }
               }
             }
           }
         },
         "runs": {
           "type": "object",
-          "required": ["records", "verdicts_pending_ingest"],
+          "required": [
+            "records",
+            "verdicts_pending_ingest"
+          ],
           "properties": {
-            "records": { "type": "integer", "minimum": 0 },
-            "verdicts_pending_ingest": { "type": "integer", "minimum": 0 },
+            "records": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "verdicts_pending_ingest": {
+              "type": "integer",
+              "minimum": 0
+            },
             "last_run": {
-              "type": ["object", "null"],
+              "type": [
+                "object",
+                "null"
+              ],
               "properties": {
-                "task_id": { "type": "string" },
-                "status": { "type": "string", "enum": ["shipped", "gated", "no_changes", "failed"] },
-                "pr_url": { "type": ["string", "null"] },
-                "finished_at": { "type": "string", "format": "date-time" }
+                "task_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "shipped",
+                    "gated",
+                    "no_changes",
+                    "failed"
+                  ]
+                },
+                "pr_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "finished_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
               }
             }
           }
         },
         "inbox": {
           "type": "object",
-          "required": ["captures"],
+          "required": [
+            "captures"
+          ],
           "properties": {
-            "captures": { "type": "integer", "minimum": 0 },
-            "latest": { "type": ["string", "null"], "format": "date-time" }
+            "captures": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "latest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
           }
         },
         "signals": {
           "type": "object",
-          "required": ["state", "reasons"],
+          "required": [
+            "state",
+            "reasons"
+          ],
           "properties": {
-            "state": { "type": "string", "enum": ["halted", "diverging", "converging", "idle", "unknown"] },
-            "reasons": { "type": "array", "items": { "type": "string" } }
+            "state": {
+              "type": "string",
+              "enum": [
+                "halted",
+                "diverging",
+                "converging",
+                "idle",
+                "unknown"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Rollup over index/diagnostics/ for this project (ADR-0006). Null until events exist.",
+          "additionalProperties": false,
+          "properties": {
+            "window_days": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "description": "Windows reported, e.g. [7, 30]."
+            },
+            "by_window": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "events": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "tokens_by_source": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "cost_usd_by_source": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "cache_share_of_input": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "cost_per_shipped_run": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "cost_per_pass_sprint": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "tool_failure_rate": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "compactions_per_session": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "subagents_per_session": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "sessions_with_sidechains_and_no_verdict": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "api_retries": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "permission_denials": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "last_event_ts": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
           }
         }
       }
     },
     "pending": {
       "type": "object",
-      "required": ["rank", "project", "kind", "ref", "summary", "since"],
+      "required": [
+        "rank",
+        "project",
+        "kind",
+        "ref",
+        "summary",
+        "since"
+      ],
       "additionalProperties": false,
       "properties": {
-        "rank": { "type": "integer", "minimum": 1 },
-        "project": { "type": "string" },
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "project": {
+          "type": "string"
+        },
         "kind": {
           "type": "string",
           "enum": [
@@ -114,10 +430,24 @@
             "custom"
           ]
         },
-        "ref": { "type": "string", "description": "DEC-NNNN, HK-NNNN, GATE-NNNN, APPR-NNNN, or a file path." },
-        "summary": { "type": "string" },
-        "since": { "type": "string", "format": "date-time" },
-        "drive_doc": { "type": ["string", "null"], "format": "uri" }
+        "ref": {
+          "type": "string",
+          "description": "DEC-NNNN, HK-NNNN, GATE-NNNN, APPR-NNNN, or a file path."
+        },
+        "summary": {
+          "type": "string"
+        },
+        "since": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "drive_doc": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        }
       }
     }
   }

@@ -20,6 +20,7 @@ deliverable; see `PLAN.md`).
 | `.council/sprint-prebrief/sprint-NN.json` | latest `cynefin`, `confidence`, `expected_loop_shape` |
 | `<auto-mate workspace>/runs/*.json` | run records for the repo; verdicts not yet ingested into the ledger |
 | `inbox/<project>/` (this repo) | captures filed from Drive, newest first |
+| `.council/diagnostics.jsonl` and `runs/*.json` | diagnostic events (ADR-0006); copied into `index/diagnostics/events-<YYYY-MM>.jsonl` and rolled up into the project's `diagnostics` block |
 
 ## Derived signal: `signals.state`
 
@@ -44,3 +45,13 @@ the approval entry that auto-mate requires, see ADR-0003) and `gate-decision`
 (a Discovery Gate package in `requires-revision` or `human-escalate`). Rank:
 halts first, then autonomy restores, then anything blocking a sprint, then the rest
 by age.
+
+## `index/diagnostics/`
+
+The cross-project diagnostic event store (ADR-0006): one JSONL file per month,
+events validated against `diagnostic-event.schema.json`, deduplicated by
+`event_id`, append-only, committed on the `work-record` branch. The archivist
+copies session events from each repo's `.council/diagnostics.jsonl` and derives
+run, crew and gate events from persisted run records. `docs/queries.md` (Phase 3)
+documents one query per question listed in ADR-0006, so a pattern study starts
+from a known-good query rather than from raw files.

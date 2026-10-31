@@ -22,6 +22,8 @@ manifest.json                  what is installed, which version, which role
 workspace/repos.json           sibling repos to clone for AI context
 workspace/sync.sh              clones or fast-forwards them into workspace/<name>/ (git-ignored)
 index/work-record.schema.json  schema of the cross-project work record the archivist builds
+index/diagnostic-event.schema.json  schema of diagnostic events (tokens, cost, tool use, outcomes; ADR-0006)
+index/diagnostics/             monthly event files the archivist maintains (work-record branch)
 index/README.md                what the work record aggregates and how its signals are derived
 archivist/briefing-task.md     the scheduled-task prompt for the archivist (fresh session per firing)
 inbox/<project>/               captures filed by the archivist from the project's Drive inbox

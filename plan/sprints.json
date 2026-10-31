@@ -2,13 +2,34 @@
   "_format": "trine-eval Planner sprint entries (number, title, features, estimated_complexity, dependencies) extended with id, phase, repo, exit_criteria and level5_decisions. Each entry is meant to be pasted into the target repo's .harness/sprints.json as a new phase (a Level 5 edit of a sacred file), or to seed /trine-eval:harness-kickoff where the repo has no harness yet.",
   "generated_at": "2026-10-31",
   "phases": [
-    { "number": 0, "title": "Baseline: meta-repo, decisions, sensor fix, billing check, carry-overs" },
-    { "number": 1, "title": "Definition of done for research, writing and quantitative work" },
-    { "number": 2, "title": "Confirm seam and governance join" },
-    { "number": 3, "title": "Archivist and cross-project work record" },
-    { "number": 4, "title": "Discovery Gate: scope as a governed, re-reviewable package" },
-    { "number": 5, "title": "Headless parity in the cloud, containment, runtime gate" },
-    { "number": 6, "title": "Measurement and ceremony re-audit (standing)" }
+    {
+      "number": 0,
+      "title": "Baseline: meta-repo, decisions, sensor fix, billing check, carry-overs"
+    },
+    {
+      "number": 1,
+      "title": "Definition of done for research, writing and quantitative work"
+    },
+    {
+      "number": 2,
+      "title": "Confirm seam and governance join"
+    },
+    {
+      "number": 3,
+      "title": "Archivist and cross-project work record"
+    },
+    {
+      "number": 4,
+      "title": "Discovery Gate: scope as a governed, re-reviewable package"
+    },
+    {
+      "number": 5,
+      "title": "Headless parity in the cloud, containment, runtime gate"
+    },
+    {
+      "number": 6,
+      "title": "Measurement and ceremony re-audit (standing)"
+    }
   ],
   "sprints": [
     {
@@ -17,11 +38,24 @@
       "repo": "cloud-catcher",
       "number": 0,
       "title": "Bootstrap the meta-repo: plan, ADRs, manifest, workspace, index schema, archivist task",
-      "features": ["PLAN.md", "plan/sprints.json", "decisions/ADR-0001..0005", "manifest.json", "workspace/sync.sh", "index/work-record.schema.json", "archivist/briefing-task.md"],
+      "features": [
+        "PLAN.md",
+        "plan/sprints.json",
+        "decisions/ADR-0001..0005",
+        "manifest.json",
+        "workspace/sync.sh",
+        "index/work-record.schema.json",
+        "archivist/briefing-task.md"
+      ],
       "estimated_complexity": "low",
       "dependencies": [],
-      "exit_criteria": ["Level 5 ratification of ADR-0001..0005 recorded in decisions/README.md"],
-      "level5_decisions": ["ratify the five ADRs", "confirm the phase order"]
+      "exit_criteria": [
+        "Level 5 ratification of ADR-0001..0005 recorded in decisions/README.md"
+      ],
+      "level5_decisions": [
+        "ratify the five ADRs",
+        "confirm the phase order"
+      ]
     },
     {
       "id": "P0-HC-1",
@@ -33,11 +67,60 @@
         "hooks/log-tool-call.sh rebuilt per auto-mate/docs/handoff/council-native-hooks (reads tool_input and cwd from the hook payload; repo root from the payload cwd; writes only when .council/ exists)",
         "hooks/win/log-tool-call.ps1 parity or an explicit deferral recorded as a henka record",
         "andon_pull_count removed from the hook; andon becomes a policy evaluated over audit-log.jsonl in council-autorun Step 1E",
-        "tests: fixture payloads for Read, Edit, Bash, Grep; assertion of 0 unknown summaries and no .council/ created outside the repo root"
+        "tests: fixture payloads for Read, Edit, Bash, Grep; assertion of 0 unknown summaries and no .council/ created outside the repo root",
+        "audit-log-entry schema gains session_id and tool_use_id (additive); the hook writes both from the payload so tool-call sequences join to sessions and diagnostics (ADR-0006)"
       ],
       "estimated_complexity": "low",
       "dependencies": [],
-      "exit_criteria": ["one full sprint in a governed repo with 0 audit entries carrying file_path=unknown", "no phantom .council/ directories"],
+      "exit_criteria": [
+        "one full sprint in a governed repo with 0 audit entries carrying file_path=unknown",
+        "no phantom .council/ directories"
+      ],
+      "level5_decisions": []
+    },
+    {
+      "id": "P0-HC-2",
+      "phase": 0,
+      "repo": "henka-council",
+      "number": 10,
+      "title": "Session diagnostics hook: one event per session into .council/diagnostics.jsonl",
+      "features": [
+        "hooks/session-diagnostics.sh on SessionEnd: sums message.usage over the transcript by model and effort, splits sidechain (subagent) usage, counts tool calls by tool from this session's audit entries, counts compactions and subagents from PreCompact and SubagentStart markers, reads the current sprint from .harness/sprint-state.json, appends one kind=session event conforming to cloud-catcher index/diagnostic-event.schema.json",
+        "PreCompact and SubagentStart hooks write minimal marker lines the SessionEnd hook counts (no bodies)",
+        "hooks/enforce-append-only.sh covers .council/diagnostics.jsonl; rotate-audit-log.py handles it the same way",
+        "scripts/measure-projection-cost.py appends a kind=projection-cost event when a .council/ exists",
+        "schema copy under schemas/diagnostic-event.schema.json kept byte-identical to cloud-catcher's (a test diffs them)",
+        "PowerShell parity or recorded deferral; tests with a fixture transcript whose totals are known"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": [
+        "P0-HC-1"
+      ],
+      "exit_criteria": [
+        "a fixture session ends with exactly one session event whose token totals equal the transcript sum",
+        "no prompt or response text appears in any event"
+      ],
+      "level5_decisions": [
+        "ratify ADR-0006"
+      ]
+    },
+    {
+      "id": "P0-AM-0",
+      "phase": 0,
+      "repo": "auto-mate",
+      "number": 0,
+      "title": "Usage capture: structured JSON from every headless agent invocation",
+      "features": [
+        "DirectCrewAdapter and gate-lib.sh invoke claude -p with --output-format json; the adapter parses session_id, total_cost_usd, the per-model breakdown, usage, duration and num_turns into CrewResult.usage; gate-lib.sh prints a USAGE: json line after the verdict that CommandGate parses into Verdict.usage",
+        "a Usage model mirroring the diagnostic-event usage object; cost_source recorded as claude-code-estimate",
+        "RunRecord.usage aggregates crew and gate usage; printed today, persisted by P2-AM-2",
+        "dry-run returns synthetic usage of zero so the lifecycle demo still runs; tests assert the parsed fields from recorded fixture output"
+      ],
+      "estimated_complexity": "low",
+      "dependencies": [],
+      "exit_criteria": [
+        "a recorded claude -p json fixture yields non-null crew and gate usage in the run record"
+      ],
       "level5_decisions": []
     },
     {
@@ -54,8 +137,12 @@
       ],
       "estimated_complexity": "low",
       "dependencies": [],
-      "exit_criteria": ["ADR-0001 addendum written"],
-      "level5_decisions": ["which surface should spend the credits"]
+      "exit_criteria": [
+        "ADR-0001 addendum written"
+      ],
+      "level5_decisions": [
+        "which surface should spend the credits"
+      ]
     },
     {
       "id": "P1-TE-1",
@@ -72,8 +159,14 @@
       ],
       "estimated_complexity": "medium",
       "dependencies": [],
-      "exit_criteria": ["both rubrics load through eval-rubric", "weights sum to 100", "each has at least one hard threshold"],
-      "level5_decisions": ["rubric weights and hard thresholds"]
+      "exit_criteria": [
+        "both rubrics load through eval-rubric",
+        "weights sum to 100",
+        "each has at least one hard threshold"
+      ],
+      "level5_decisions": [
+        "rubric weights and hard thresholds"
+      ]
     },
     {
       "id": "P1-TE-2",
@@ -88,8 +181,34 @@
         "a worked example contract per type under skills/sprint-contract/examples/"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P1-TE-1"],
-      "exit_criteria": ["kickoff on a fixture research project writes a config.json with the right rubric", "a fixture quant sprint grades end to end"],
+      "dependencies": [
+        "P1-TE-1"
+      ],
+      "exit_criteria": [
+        "kickoff on a fixture research project writes a config.json with the right rubric",
+        "a fixture quant sprint grades end to end"
+      ],
+      "level5_decisions": []
+    },
+    {
+      "id": "P1-TE-3",
+      "phase": 1,
+      "repo": "trine-eval",
+      "number": 3,
+      "title": "Cost and usage next to pass rates",
+      "features": [
+        "harness-sprint records per-sprint cost_usd and tokens in sprint-state.json when a session event or run record for the sprint exists (derived, nullable)",
+        "harness-summary adds cost per PASS sprint, cost per criterion, cache share of input, and compactions per session to the Consistency and ACI sections",
+        "the Evaluator transcript trailer gains optional usage fields when the evaluator can observe them"
+      ],
+      "estimated_complexity": "low",
+      "dependencies": [
+        "P0-HC-2",
+        "P1-TE-2"
+      ],
+      "exit_criteria": [
+        "harness-summary over the validation set reports cost per PASS and cache share"
+      ],
       "level5_decisions": []
     },
     {
@@ -104,15 +223,22 @@
         "harness-summary over the five; record first-round pass, pass^k, untestable-criterion rate"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P1-TE-2"],
-      "exit_criteria": ["at least 4 of 5 reach PASS within max_retries", "untestable criteria below 20% of criteria authored"],
-      "level5_decisions": ["which five tasks"]
+      "dependencies": [
+        "P1-TE-2"
+      ],
+      "exit_criteria": [
+        "at least 4 of 5 reach PASS within max_retries",
+        "untestable criteria below 20% of criteria authored"
+      ],
+      "level5_decisions": [
+        "which five tasks"
+      ]
     },
     {
       "id": "P2-HC-2",
       "phase": 2,
       "repo": "henka-council",
-      "number": 10,
+      "number": 11,
       "title": "Human-approval log writer and the ratify-to-approval wiring",
       "features": [
         "scripts/append-approval.py writing .council/human-approvals.jsonl per human-approval-log-entry.schema.json",
@@ -122,9 +248,16 @@
         "schema fixtures valid/invalid"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P0-HC-1"],
-      "exit_criteria": ["Stage 4 on a fixture decision produces an APPR entry linking DEC and sha256", "Write/Edit on the file is blocked by the hook"],
-      "level5_decisions": ["ratify ADR-0003"]
+      "dependencies": [
+        "P0-HC-1"
+      ],
+      "exit_criteria": [
+        "Stage 4 on a fixture decision produces an APPR entry linking DEC and sha256",
+        "Write/Edit on the file is blocked by the hook"
+      ],
+      "level5_decisions": [
+        "ratify ADR-0003"
+      ]
     },
     {
       "id": "P2-AM-1",
@@ -140,8 +273,12 @@
         "tests against a governed fixture repo and an ungoverned one; docs/architecture.md update"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P2-HC-2"],
-      "exit_criteria": ["the four verification cases in ADR-0003 pass as tests"],
+      "dependencies": [
+        "P2-HC-2"
+      ],
+      "exit_criteria": [
+        "the four verification cases in ADR-0003 pass as tests"
+      ],
       "level5_decisions": []
     },
     {
@@ -155,28 +292,42 @@
         "Verdict.evidence (verdict line and findings) and Verdict.autonomy_at_gate",
         "ship skipped with status gated and a recorded reason when effective autonomy is 2 or lower",
         "RunRecord.scope echoes the ScopeRef and approval id",
-        "docs: cloud division of labor, AUTOMATE_WORKSPACE_ROOT pointing at a cloud-catcher checkout's runs/ in cloud environments"
+        "docs: cloud division of labor, AUTOMATE_WORKSPACE_ROOT pointing at a cloud-catcher checkout's runs/ in cloud environments",
+        "RunRecord.usage, CrewResult.usage and Verdict.usage persisted with the record; a kind=run event can be derived without re-running anything"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P2-AM-1"],
-      "exit_criteria": ["Level 1 fixture: gated, no push, reason names the floor", "Level 4 fixture: shipped, record on disk with evidence"],
-      "level5_decisions": ["ratify ADR-0002"]
+      "dependencies": [
+        "P2-AM-1"
+      ],
+      "exit_criteria": [
+        "Level 1 fixture: gated, no push, reason names the floor",
+        "Level 4 fixture: shipped, record on disk with evidence"
+      ],
+      "level5_decisions": [
+        "ratify ADR-0002"
+      ]
     },
     {
       "id": "P2-HC-3",
       "phase": 2,
       "repo": "henka-council",
-      "number": 11,
+      "number": 12,
       "title": "Ingest auto-mate run records into the henka register",
       "features": [
         "scripts/ingest-run-record.py: maps verdicts to henka records (Method / gate-verdict / passive; impact by verdict and ship outcome; detected_by auto-mate/<gate>; evidence cites run path and verdict line); appends via append-henka.py; idempotent on run path",
         "council-autorun Step 1A invokes it over a configured runs directory before the pre-sprint check",
         "council-detect reports pending-ingest counts",
-        "tests with recorded run-record fixtures from P2-AM-2"
+        "tests with recorded run-record fixtures from P2-AM-2",
+        "ingest also emits kind=run, crew and gate diagnostic events into .council/diagnostics.jsonl for the repo the run targeted"
       ],
       "estimated_complexity": "low",
-      "dependencies": ["P2-AM-2"],
-      "exit_criteria": ["one henka record per verdict", "second ingest appends nothing"],
+      "dependencies": [
+        "P2-AM-2"
+      ],
+      "exit_criteria": [
+        "one henka record per verdict",
+        "second ingest appends nothing"
+      ],
       "level5_decisions": []
     },
     {
@@ -189,11 +340,19 @@
         "scripts/build-index.py (stdlib only): reads sibling repos per workspace/repos.json and the sources in index/README.md; writes index/work-record.json valid against the schema and index/briefing.md",
         "signal derivation exactly as index/README.md states, with reasons as file:field=value",
         "decisions_pending ranking",
-        "tests with two fixture projects (one converging, one halted)"
+        "tests with two fixture projects (one converging, one halted)",
+        "copies new events from each repo's .council/diagnostics.jsonl and derives run/crew/gate events from runs/*.json into index/diagnostics/events-<YYYY-MM>.jsonl, deduplicated by event_id",
+        "writes each project's diagnostics rollup block (7-day and 30-day tokens and cost by source, cost per shipped run, cost per PASS sprint, cache share, tool failure rate, compactions and subagents per session)",
+        "docs/queries.md: one documented query per question in ADR-0006"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P2-HC-3"],
-      "exit_criteria": ["schema-valid output over the three component repos plus one fixture project", "idempotent re-run produces identical output except generated_at"],
+      "dependencies": [
+        "P2-HC-3"
+      ],
+      "exit_criteria": [
+        "schema-valid output over the three component repos plus one fixture project",
+        "idempotent re-run produces identical output except generated_at"
+      ],
       "level5_decisions": []
     },
     {
@@ -207,18 +366,27 @@
         "scheduled task from archivist/briefing-task.md with the Google Drive connector, daily at a jittered off-peak time",
         "Drive layout per ADR-0004 created; briefing and index mirrored; captures filed into inbox/<project>/",
         "push notification when decisions_pending is non-empty or any project is halted",
-        "work-record branch convention; main untouched by the task"
+        "work-record branch convention; main untouched by the task",
+        "briefing gains a Trends section from the rollups: cost this week against last, cache share, halts and compactions"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P3-CC-1"],
-      "exit_criteria": ["two projects in one briefing", "a seeded pending decision reaches Drive and a notification", "a seeded capture is filed"],
-      "level5_decisions": ["approve the Drive layout, the schedule, and the connector grant"]
+      "dependencies": [
+        "P3-CC-1"
+      ],
+      "exit_criteria": [
+        "two projects in one briefing",
+        "a seeded pending decision reaches Drive and a notification",
+        "a seeded capture is filed"
+      ],
+      "level5_decisions": [
+        "approve the Drive layout, the schedule, and the connector grant"
+      ]
     },
     {
       "id": "P4-HC-4",
       "phase": 4,
       "repo": "henka-council",
-      "number": 12,
+      "number": 13,
       "title": "Discovery Gate reviewers and schemas",
       "features": [
         "agents/spec-specialist.md (steelman), agents/constraint-extractor.md (adversary), agents/criteria-architect.md (adjudicator) per docs/design/discovery_gate.md §3 and §4",
@@ -228,15 +396,22 @@
         "templates/gate-position-paper.md"
       ],
       "estimated_complexity": "high",
-      "dependencies": ["P2-HC-2"],
-      "exit_criteria": ["each reviewer returns evidence_class, confidence and verification fields on a fixture package", "schemas validate the fixtures"],
-      "level5_decisions": ["confirm the ratified roster has not drifted"]
+      "dependencies": [
+        "P2-HC-2"
+      ],
+      "exit_criteria": [
+        "each reviewer returns evidence_class, confidence and verification fields on a fixture package",
+        "schemas validate the fixtures"
+      ],
+      "level5_decisions": [
+        "confirm the ratified roster has not drifted"
+      ]
     },
     {
       "id": "P4-HC-5",
       "phase": 4,
       "repo": "henka-council",
-      "number": 13,
+      "number": 14,
       "title": "council-gate skill: two-wave dispatch, decision states, Goldfish wave, re-entry",
       "features": [
         "skills/council-gate/SKILL.md: wave 1 four reviewers, wave 2 architect synthesis; four decision states with outputs under .council/proposed/GATE-NNNN.md",
@@ -246,9 +421,17 @@
         "hand-off: a passing package feeds harness-kickoff or a new sprints.json phase; Stage 4 ratification writes the APPR entry with the package sha256"
       ],
       "estimated_complexity": "high",
-      "dependencies": ["P4-HC-4", "P3-CC-2"],
-      "exit_criteria": ["a capture becomes a ratified package consumable by harness-kickoff without manual edits", "a mid-flight spec.md edit triggers re-review"],
-      "level5_decisions": ["ratify the first real package"]
+      "dependencies": [
+        "P4-HC-4",
+        "P3-CC-2"
+      ],
+      "exit_criteria": [
+        "a capture becomes a ratified package consumable by harness-kickoff without manual edits",
+        "a mid-flight spec.md edit triggers re-review"
+      ],
+      "level5_decisions": [
+        "ratify the first real package"
+      ]
     },
     {
       "id": "P5-AM-3",
@@ -263,8 +446,12 @@
         "setup script installs treehouse and no-mistakes where they work; documents where they do not"
       ],
       "estimated_complexity": "high",
-      "dependencies": ["P2-AM-2"],
-      "exit_criteria": ["one real task shipped from a cloud session end to end with a persisted run record and ingested verdicts"],
+      "dependencies": [
+        "P2-AM-2"
+      ],
+      "exit_criteria": [
+        "one real task shipped from a cloud session end to end with a persisted run record and ingested verdicts"
+      ],
       "level5_decisions": []
     },
     {
@@ -274,15 +461,21 @@
       "number": 4,
       "title": "Containment: budgets, scoped tools, resource-cap records",
       "features": [
-        "per-task caps in Settings: wall-clock, max turns, token ceiling read from the agent's JSON output usage",
+        "per-task caps in Settings mapped to claude -p flags: --max-budget-usd, --max-turns, plus wall-clock timeout; cap_hit recorded on the run record and the derived event",
         "crew tool deny-list and read-only gate agents (`--bare` where API-key auth is available)",
         "a resource-cap verdict recorded when a cap fires, ingested as response_type resource-cap",
         "secrets only via environment configuration; never on the command line"
       ],
       "estimated_complexity": "medium",
-      "dependencies": ["P5-AM-3"],
-      "exit_criteria": ["a deliberately overlong fixture task ends gated with a resource-cap verdict and an ingested henka record"],
-      "level5_decisions": ["Phase 5 runtime gate per ADR-0001: stay or migrate the headless path"]
+      "dependencies": [
+        "P5-AM-3"
+      ],
+      "exit_criteria": [
+        "a deliberately overlong fixture task ends gated with a resource-cap verdict and an ingested henka record"
+      ],
+      "level5_decisions": [
+        "Phase 5 runtime gate per ADR-0001: stay or migrate the headless path"
+      ]
     },
     {
       "id": "P6-POLICY",
@@ -295,12 +488,21 @@
         "council fan-out at cycle boundaries; per-sprint henkaten detection passive (log-derived)",
         "cross-project harness-summary from the work record: saturation and failure patterns across repos",
         "memory decision from index/retrieval-misses.jsonl",
-        "PDCA standing question: which component has the current model made unnecessary"
+        "PDCA standing question: which component has the current model made unnecessary",
+        "retrospective pdca mode reads the project's diagnostics rollup and the cycle's events; harness-summary ACI section cites cost with consistency",
+        "OpenTelemetry tier (ADR-0006 tier 2): choose a backend (Level 5), set CLAUDE_CODE_ENABLE_TELEMETRY and OTLP exporters in cloud environments and local shells with OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<crew|gate|council|archivist>; prompts stay redacted"
       ],
       "estimated_complexity": "n/a",
-      "dependencies": ["P3-CC-2"],
-      "exit_criteria": ["one PDCA cycle has produced at least one ratified standard-work change from cross-project data"],
-      "level5_decisions": ["each standard-work proposal"]
+      "dependencies": [
+        "P3-CC-2"
+      ],
+      "exit_criteria": [
+        "one PDCA cycle has produced at least one ratified standard-work change from cross-project data"
+      ],
+      "level5_decisions": [
+        "each standard-work proposal",
+        "the OpenTelemetry backend, or none"
+      ]
     }
   ]
 }

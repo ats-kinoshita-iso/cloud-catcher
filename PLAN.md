@@ -3,7 +3,8 @@
 - **Status:** Proposed (Level 5 review before any sprint starts)
 - **Date:** 2026-10-31
 - **Repos:** auto-mate, henka-council (plugin id `henkaten-council`), trine-eval, cloud-catcher (this repo)
-- **Companions:** `decisions/ADR-0001..0005`, `plan/sprints.json` (machine-readable decomposition), `manifest.json`, `index/work-record.schema.json`, `archivist/briefing-task.md`
+- **Companions:** `decisions/ADR-0001..0006`, `plan/sprints.json` (machine-readable decomposition), `manifest.json`, `index/work-record.schema.json`, `index/diagnostic-event.schema.json`, `archivist/briefing-task.md`
+- **Ratification:** ADR-0001 to ADR-0005 ratified 2026-10-31. ADR-0006 (diagnostics) added the same day at the human's request and awaiting ratification.
 
 The plan builds on what the four repos already contain and on the August 2026 stack review
 in auto-mate (`docs/agent-stack-review-2026-08.md`). It adds no new vocabulary: every
@@ -40,6 +41,7 @@ Exit gates, all of which must hold:
 | Non-code work gradable | five-task research and quant set: at least 4 reach PASS within `max_retries`; first-round pass and pass^k reported | `harness-summary` |
 | Cross-project record | two projects in one briefing; a pending decision reaches Drive and a notification | `index/work-record.json`, Drive |
 | Headless parity | one real task shipped from a cloud session end to end with ingested verdicts | run record, PR |
+| Diagnostics coverage | every run record carries usage and cost; every session in a governed repo ends with one session event; each of ADR-0006's eleven questions has a documented query | `index/diagnostics/`, `docs/queries.md` |
 
 ## 2. Ground truth (checked 2026-10-31)
 
@@ -70,10 +72,14 @@ Broken or missing:
 | Governance on the headless path | the governance gate is a prompt; reads no `.council/` state, writes no record |
 | Cloud validation of the run lifecycle | `dry_run` is global; treehouse and no-mistakes not installed in cloud environments |
 | Cross-project record, archivist | nothing exists |
+| Diagnostics | tokens and cost are recorded only inside `trine_eval`'s own eval runs; sessions, crews and gates record none; audit entries carry no session id, so tool calls cannot be joined to sessions |
 
 August review carry-overs: done are the `budget_tokens` removal, the langfuse pin, the
 Workflow trial loop, and `/code-review` as review engine. Not done are the native-hook
-logger, the no-mistakes pin, and re-validation of undocumented agent frontmatter.
+logger, the no-mistakes pin, and re-validation of undocumented agent frontmatter. One of
+the review's findings is out of date: Claude Code now documents OpenTelemetry export of token,
+cost and tool metrics and events, and `claude -p` documents `--max-budget-usd` (ADR-0001
+amendment A1).
 
 ## 3. Principles
 
@@ -85,6 +91,33 @@ logger, the no-mistakes pin, and re-validation of undocumented agent frontmatter
 5. Measure before building memory. No vector or graph store until retrieval misses are logged.
 6. Ceremony is re-audited every PDCA cycle (August review §6.2).
 7. The meta-repo holds no component source (ADR-0005).
+8. Instrument what you want to improve. Every producer writes the one diagnostic event
+   schema; studies run over one store (ADR-0006).
+
+### Cross-cutting: diagnostics
+
+ADR-0006 adds a diagnostics layer that runs through every phase rather than being a phase
+of its own. One event schema (`index/diagnostic-event.schema.json`: envelope, join keys,
+measures, labels, never prompt or response bodies). Two capture paths, both files in git:
+
+- **Interactive sessions.** A council `SessionEnd` hook sums the transcript's per-message
+  usage by model and effort, splits subagent usage, counts tool calls by tool from the
+  session's audit entries, counts compactions and subagents, and appends one `session`
+  event to `.council/diagnostics.jsonl`. Checked: every assistant entry in a Claude Code
+  transcript carries `message.usage` with input, output, cache-read and cache-creation
+  tokens, plus `sessionId`, `effort` and `isSidechain`.
+- **Headless runs.** auto-mate invokes `claude -p` with `--output-format json` and parses
+  `session_id`, `total_cost_usd`, usage, duration and turns into the run record; the
+  archivist derives `run`, `crew` and `gate` events from persisted records.
+
+One place to study: the archivist copies every event into
+`index/diagnostics/events-<YYYY-MM>.jsonl`, deduplicated by event id, and writes a rollup
+per project into the work record. The questions the data must answer are listed in ADR-0006
+and are the acceptance test for the schema; `docs/queries.md` holds one query per question.
+An OpenTelemetry tier is optional and comes later, once a backend is chosen. Improvements
+flow through the channels that already exist: the retrospective in `pdca` mode and
+`harness-summary`'s ACI section read the rollups, and standard-work changes still go through
+nemawashi.
 
 ## 4. Phases
 
@@ -106,6 +139,23 @@ Step 1E). PowerShell parity or a recorded deferral. Contract seeds:
 - behavioral, bucket 2: a payload whose cwd is a worktree without `.council/` creates no
   directory.
 - Should-NOT: no entry carries a non-null `andon_pull_count`.
+
+**P0-HC-2, henka-council: session diagnostics hook.** A `SessionEnd` hook that writes the
+`session` event described above; `PreCompact` and `SubagentStart` write marker lines it counts;
+the append-only hook and the rotation script cover `.council/diagnostics.jsonl`;
+`measure-projection-cost.py` appends a `projection-cost` event. The audit entry gains
+`session_id` and `tool_use_id` in P0-HC-1 so the two logs join. Contract seeds:
+
+- behavioral, bucket 2: a fixture transcript with known totals ends in exactly one event
+  whose per-model totals equal the transcript sum.
+- Should-NOT: no event contains prompt or response text (a grep over the fixture's known
+  prompt string finds nothing).
+
+**P0-AM-0, auto-mate: usage capture.** Crews and gates run with `--output-format json`;
+the adapter parses `session_id`, `total_cost_usd`, the per-model breakdown, usage, duration
+and turns into `CrewResult.usage`; the gate library prints a `USAGE:` JSON line after the
+verdict that `CommandGate` parses into `Verdict.usage`. Dry-run returns zero usage so the
+lifecycle demo still runs. P2-AM-2 persists what this captures.
 
 **P0-OPS-1, operator.** Billing surface check (one headless run with the API key; Console
 usage line; addendum to ADR-0001). Re-validate `context: fork` and `thinking:` frontmatter.
@@ -146,6 +196,11 @@ Example criterion the quant rubric expects to see in contracts:
 `research-report` and `quant-model` with rubric mapping and detection hints; python for
 numeric checks, playwright never; summary N/A handling; one worked example contract per type.
 
+**P1-TE-3, trine-eval: cost next to pass rates.** Per-sprint cost and tokens in
+`sprint-state.json` when a session event or run record exists for the sprint;
+`harness-summary` reports cost per PASS sprint, cost per criterion, cache share of input and
+compactions per session next to consistency.
+
 **P1-VAL-1, a scratch project.** Five real tasks (three research memos, two risk-model
 spikes) through `harness-sprint`, `trials = 2` on the quant sprints, then `harness-summary`.
 Gate: at least 4 of 5 PASS within `max_retries`; untestable criteria under 20%. Level 5:
@@ -172,15 +227,16 @@ ratification of a sprint plan mirrors the yokoten ratify-once shortcut, so the h
 one per plan, not one per task.
 
 **P2-AM-2, auto-mate: persisted run records and autonomy-aware shipping.** Records to
-`<workspace_root>/runs/<repo-slug>/<task-id>-<utc>.json`; `Verdict.evidence` and
-`Verdict.autonomy_at_gate`; ship skipped with status `gated` when the floor is at or below
+`<workspace_root>/runs/<repo-slug>/<task-id>-<utc>.json`, including the crew and gate usage
+from P0-AM-0; `Verdict.evidence` and `Verdict.autonomy_at_gate`; ship skipped with status `gated` when the floor is at or below
 Level 2. In cloud environments the workspace root points at a cloud-catcher checkout's
 `runs/`, pushed to the `work-record` branch after the run.
 
 **P2-HC-3, henka-council: ingest.** `scripts/ingest-run-record.py` maps verdicts to henka
 records (Method, `gate-verdict`, passive, impact by verdict and ship outcome, evidence citing
-the run path) and appends through `append-henka.py`, idempotent on run path. council-autorun
-Step 1A runs it before the pre-sprint check.
+the run path) and appends through `append-henka.py`, idempotent on run path. It also emits
+`run`, `crew` and `gate` diagnostic events for the targeted repo. council-autorun Step 1A
+runs it before the pre-sprint check.
 
 Exit: in a governed fixture at Level 1, `automate run --execute` ends `gated` with no push;
 at Level 4 with a ratified scope it ships, the record exists, ingest appends one henka record
@@ -191,14 +247,18 @@ per verdict and a second ingest appends nothing.
 **P3-CC-1, cloud-catcher: work-record builder.** `scripts/build-index.py`, stdlib only,
 reading the sources in `index/README.md` and writing `index/work-record.json` (schema-valid)
 and `index/briefing.md`. Signals derived exactly as the README states, each with a
-`file:field=value` reason. Tests with two fixture projects. This repo gets its own harness
-for this sprint (`cli-tool` rubric).
+`file:field=value` reason. The same script copies new diagnostic events into
+`index/diagnostics/events-<YYYY-MM>.jsonl`, derives run, crew and gate events from run
+records, writes each project's diagnostics rollup, and ships `docs/queries.md` with one query
+per ADR-0006 question. Tests with two fixture projects. This repo gets its own harness for
+this sprint (`cli-tool` rubric).
 
 **P3-CC-2, cloud-catcher and cloud environment: the archivist.** An environment whose setup
 script runs `workspace/sync.sh` and installs `automate`; a scheduled task from
 `archivist/briefing-task.md` with the Drive connector, daily at an off-peak time; the Drive
-layout from ADR-0004; captures filed into `inbox/<project>/`; a push notification when
-decisions are pending or a project is halted; writes only to the `work-record` branch and to
+layout from ADR-0004; captures filed into `inbox/<project>/`; a Trends section in the
+briefing from the diagnostics rollups; a push notification when decisions are pending or a
+project is halted; writes only to the `work-record` branch and to
 Drive. Level 5: approve the layout, the schedule, and the connector grant.
 
 Exit: two projects in one briefing; a seeded pending decision reaches Drive and a
@@ -234,8 +294,9 @@ no-mistakes' daemon cannot run in the container (push branch, open draft PR thro
 session's GitHub access, recorded as such); setup script installs what works. Exit: one real
 task shipped from a cloud session with a persisted record and ingested verdicts.
 
-**P5-AM-4, auto-mate: containment.** Per-task wall-clock, max-turns and token caps; crew tool
-deny-list and read-only gate agents (`--bare` where API-key auth is available); a
+**P5-AM-4, auto-mate: containment.** Per-task caps mapped to `claude -p` flags,
+`--max-budget-usd` and `--max-turns`, plus a wall-clock timeout, with `cap_hit` recorded on
+the run record and the derived event; crew tool deny-list and read-only gate agents (`--bare` where API-key auth is available); a
 `resource-cap` verdict when a cap fires, ingested with `response_type: resource-cap`; secrets
 only through environment configuration.
 
@@ -247,17 +308,19 @@ Level 5.
 
 Through the council's own retrospective to nemawashi to standard-work pipeline: trial count
 risk-tiered by policy; council fan-out at cycle boundaries with passive per-sprint detection;
-cross-project `harness-summary` from the work record; the memory decision from
-`index/retrieval-misses.jsonl`; the standing PDCA question, which component has the current
-model made unnecessary.
+cross-project `harness-summary` from the work record; the retrospective in `pdca` mode
+reading the diagnostics rollups; the OpenTelemetry tier once a backend is chosen
+(`CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters, resource attributes naming project and
+layer, prompts left redacted); the memory decision from `index/retrieval-misses.jsonl`; the
+standing PDCA question, which component has the current model made unnecessary.
 
 ## 5. Order and dependencies
 
 ```
-P0-CC-0 ─┐
-P0-HC-1 ─┼─► P2-HC-2 ─► P2-AM-1 ─► P2-AM-2 ─► P2-HC-3 ─► P3-CC-1 ─► P3-CC-2 ─► P6
-P0-OPS-1 ┘                                       │                      │
-P1-TE-1 ─► P1-TE-2 ─► P1-VAL-1                   └─► P5-AM-3 ─► P5-AM-4  └─► P4-HC-4 ─► P4-HC-5
+P0-HC-1 ─► P0-HC-2 ─► P1-TE-3
+P0-HC-1 ─► P2-HC-2 ─► P2-AM-1 ─► P2-AM-2 ─► P2-HC-3 ─► P3-CC-1 ─► P3-CC-2 ─► P6-POLICY
+P0-AM-0 ─────────────────────► P2-AM-2            └─► P5-AM-3 ─► P5-AM-4
+P1-TE-1 ─► P1-TE-2 ─► P1-VAL-1        P2-HC-2 ─► P4-HC-4 ─► P4-HC-5 ◄─ P3-CC-2
 ```
 
 Phase 1 is independent of Phase 2 and can run in parallel with it. Phase 4 waits for the
@@ -268,13 +331,13 @@ run records. Phase 6 starts once the work record exists.
 
 | When | Decision |
 |---|---|
-| Now | Ratify ADR-0001 to ADR-0005; confirm the phase order |
+| Now | Ratify ADR-0006 (ADR-0001 to ADR-0005 ratified 2026-10-31) |
 | Phase 0 | Which surface should spend the API credits |
 | Phase 1 | The five validation tasks; rubric weights and hard thresholds |
 | Phase 3 | Drive layout, archivist schedule, connector grant |
 | Phase 4 | The first real gate package |
 | Phase 5 | Stay on `claude -p` or migrate the headless path |
-| Phase 6 | Each standard-work proposal |
+| Phase 6 | Each standard-work proposal; the OpenTelemetry backend, or none |
 
 ## 7. Risks and watch items
 
@@ -292,6 +355,11 @@ run records. Phase 6 starts once the work record exists.
   Drive, and only to the archivist task.
 - **API drift.** Opus 5.5 is the current default model with effort default `medium`; set
   effort explicitly wherever the library or gates call the API.
+- **Diagnostics privacy.** No prompt or response bodies in any event; the OpenTelemetry
+  flags that log prompts, responses, tool details or raw API bodies stay unset.
+- **Hook event availability.** `SessionEnd`, `PreCompact` and `SubagentStart` are documented
+  today; P0-HC-2 verifies them on the installed Claude Code version and falls back to `Stop`
+  if one is missing.
 
 ## 8. Running this plan with the stack itself
 
@@ -321,7 +389,7 @@ maintainer. These are estimates, not commitments.
 
 | Weeks | Phases |
 |---|---|
-| 1 | Phase 0, Phase 1 start |
+| 1 to 2 | Phase 0, Phase 1 start |
 | 2 | Phase 1 finish, Phase 2 start |
 | 3 | Phase 2 finish, Phase 3 start |
 | 4 | Phase 3 finish |

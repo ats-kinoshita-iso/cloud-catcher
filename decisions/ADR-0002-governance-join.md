@@ -1,6 +1,6 @@
 # ADR 0002: Governance join: auto-mate reads council state and persists run records; the council ingests them
 
-- **Status:** Proposed
+- **Status:** Accepted (ratified by the human 2026-10-31)
 - **Date:** 2026-10-31
 - **Author:** cloud-catcher bootstrap (planning session)
 - **Scope:** How the headless execution path (auto-mate) and the governance layer (henkaten-council) share state
