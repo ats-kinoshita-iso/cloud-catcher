@@ -55,7 +55,12 @@
       "level5_decisions": [
         "ratify the five ADRs",
         "confirm the phase order"
-      ]
+      ],
+      "status": {
+        "state": "done",
+        "ref": "cloud-catcher ccr-c7282e29-j2yf05 (ea4fdcf..6b6a76d)",
+        "date": "2026-10-31"
+      }
     },
     {
       "id": "P0-HC-1",
@@ -76,7 +81,13 @@
         "one full sprint in a governed repo with 0 audit entries carrying file_path=unknown",
         "no phantom .council/ directories"
       ],
-      "level5_decisions": []
+      "level5_decisions": [],
+      "status": {
+        "state": "in-review",
+        "ref": "https://github.com/ats-kinoshita-iso/henka-council/pull/28",
+        "date": "2026-10-31",
+        "note": "built directly from this plan, not through harness-sprint; Windows wrapper tests run in CI only"
+      }
     },
     {
       "id": "P0-HC-2",
@@ -102,7 +113,13 @@
       ],
       "level5_decisions": [
         "ratify ADR-0006"
-      ]
+      ],
+      "status": {
+        "state": "in-review",
+        "ref": "https://github.com/ats-kinoshita-iso/henka-council/pull/28",
+        "date": "2026-10-31",
+        "note": "compactions and subagents are counted from the transcript itself (system compact entries, Agent/Task tool_use blocks); no PreCompact or SubagentStart marker hooks were needed"
+      }
     },
     {
       "id": "P0-AM-0",
@@ -121,7 +138,13 @@
       "exit_criteria": [
         "a recorded claude -p json fixture yields non-null crew and gate usage in the run record"
       ],
-      "level5_decisions": []
+      "level5_decisions": [],
+      "status": {
+        "state": "in-review",
+        "ref": "https://github.com/ats-kinoshita-iso/auto-mate/pull/6",
+        "date": "2026-10-31",
+        "note": "dry-run reports usage null rather than synthetic zeros; a child claude -p inside a cloud session was observed to report the parent's session id, flagged as session_id_inherited"
+      }
     },
     {
       "id": "P0-OPS-1",
@@ -505,5 +528,6 @@
         "the OpenTelemetry backend, or none"
       ]
     }
-  ]
+  ],
+  "_status_convention": "status.state is one of planned, in-progress, in-review, done, dropped; status.ref points at the PR or commit range; status.note records deviations from the sprint's features."
 }

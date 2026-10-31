@@ -360,6 +360,12 @@ run records. Phase 6 starts once the work record exists.
   effort explicitly wherever the library or gates call the API.
 - **Diagnostics privacy.** No prompt or response bodies in any event; the OpenTelemetry
   flags that log prompts, responses, tool details or raw API bodies stay unset.
+- **Child session ids inside cloud sessions.** A `claude -p` child started from inside a Claude
+  Code cloud session reported the parent's session id even with `CLAUDE_CODE_SESSION_ID`
+  removed from its environment (probed twice on 2026-10-31). auto-mate flags this as
+  `session_id_inherited`; rollups then join such runs on the task id, not the session id.
+  Check whether the same happens from a plain shell before relying on session ids from
+  crews run by the archivist.
 - **Hook event availability.** `SessionEnd`, `PreCompact` and `SubagentStart` are documented
   today; P0-HC-2 verifies them on the installed Claude Code version and falls back to `Stop`
   if one is missing.
@@ -392,7 +398,7 @@ maintainer. These are estimates, not commitments.
 
 | Weeks | Phases |
 |---|---|
-| 1 to 2 | Phase 0, Phase 1 start |
+| 1 to 2 | Phase 0 (P0-HC-1, P0-HC-2, P0-AM-0 in review as of 2026-10-31), Phase 1 start |
 | 2 | Phase 1 finish, Phase 2 start |
 | 3 | Phase 2 finish, Phase 3 start |
 | 4 | Phase 3 finish |
