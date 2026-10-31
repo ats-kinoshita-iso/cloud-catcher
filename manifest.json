@@ -1,0 +1,87 @@
+{
+  "manifest_version": "0.1.0",
+  "observed_at": "2026-10-31",
+  "_note": "A record of what is installed and what role it plays. It is not a release gate and pins nothing that does not exist yet. Versions are the ones read from the repos on observed_at.",
+  "runtime": {
+    "decision": "decisions/ADR-0001-runtime.md",
+    "current": "Claude Code: plugins for the interactive path, headless `claude -p` via auto-mate for execution, cloud sessions plus scheduled tasks for the archivist"
+  },
+  "components": [
+    {
+      "name": "trine-eval",
+      "kind": "claude-code-plugin + python-library",
+      "repo": "https://github.com/ats-kinoshita-iso/trine-eval",
+      "version": { "plugin": "0.4.0", "library": "0.1.0" },
+      "layer": "evaluation",
+      "role": "Sprint contracts, rubrics, trials (pass@k / pass^k), regression graduation; `trine_eval` runner, scorers, judge calibration, Batch API, OTel",
+      "install": "/plugin marketplace add ats-kinoshita-iso/trine-eval",
+      "status": "active; two completed build phases in its own .harness/"
+    },
+    {
+      "name": "henkaten-council",
+      "kind": "claude-code-plugin",
+      "repo": "https://github.com/ats-kinoshita-iso/henka-council",
+      "version": "0.1.2",
+      "layer": "governance",
+      "role": "Henkaten detection (4M axis), append-only ledgers, dynamic autonomy floor, andon protocol, nemawashi walkthrough, retrospectives, from-plan bridge",
+      "install": "/plugin marketplace add ats-kinoshita-iso/henka-council",
+      "status": "active; Discovery Gate designed (docs/design/discovery_gate.md) but not built; tool-call audit logger defective (HKP-0003)"
+    },
+    {
+      "name": "auto-mate",
+      "kind": "python-cli",
+      "repo": "https://github.com/ats-kinoshita-iso/auto-mate",
+      "version": "0.1.0",
+      "layer": "execution",
+      "role": "Task -> worktree -> crew -> gates -> safe-push lifecycle; PR review lifecycle; typed RunRecord",
+      "install": "scripts/cloud-setup.sh (uv tool install)",
+      "status": "scaffold; dry_run default; treehouse and no-mistakes validated live on Linux; no cloud validation of the run lifecycle; gates are prompt reviewers that read no council state"
+    },
+    {
+      "name": "cloud-catcher",
+      "kind": "meta-repo",
+      "repo": "https://github.com/ats-kinoshita-iso/cloud-catcher",
+      "version": "0.1.0",
+      "layer": "coordination",
+      "role": "Plan, decisions, manifest, cross-project work record, archivist task, capture inbox",
+      "status": "bootstrapped by this plan"
+    },
+    {
+      "name": "elephant-goldfish-model",
+      "kind": "claude-code-plugin (external, Google)",
+      "repo": "https://github.com/google/elephant-goldfish-model",
+      "version": "pin to a commit at install; plugin first published 2026-10-21",
+      "layer": "scope",
+      "role": "Design-first skills (/egm-brainstorm, /egm-draft, /egm-review); the zero-context Goldfish review wave for scope drafts",
+      "install": "claude plugin marketplace add google/elephant-goldfish-model && claude plugin install egm@egm",
+      "status": "planned (Phase 4)"
+    },
+    {
+      "name": "treehouse",
+      "kind": "external-binary",
+      "repo": "https://github.com/kunchenguid/treehouse",
+      "version": "v2.1.1",
+      "layer": "execution",
+      "role": "Pooled, leased git worktrees for auto-mate",
+      "status": "active locally; not installed in cloud environments yet"
+    },
+    {
+      "name": "no-mistakes",
+      "kind": "external-binary",
+      "repo": "https://github.com/kunchenguid/no-mistakes",
+      "version": "v1.45.4 validated; v1.48.0 recommended pin (last stable)",
+      "layer": "execution",
+      "role": "Safe-push gate: review -> test -> lint -> push -> PR",
+      "status": "active locally; daemon unvalidated inside cloud containers"
+    },
+    {
+      "name": "firstmate",
+      "kind": "external",
+      "repo": "https://github.com/kunchenguid/firstmate",
+      "version": "none (no releases)",
+      "layer": "execution",
+      "role": "Multi-agent crew backend behind AUTOMATE_CREW_BACKEND",
+      "status": "parked; tmux-bound, needs interactive consent, not cloud-suitable"
+    }
+  ]
+}

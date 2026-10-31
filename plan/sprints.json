@@ -1,0 +1,306 @@
+{
+  "_format": "trine-eval Planner sprint entries (number, title, features, estimated_complexity, dependencies) extended with id, phase, repo, exit_criteria and level5_decisions. Each entry is meant to be pasted into the target repo's .harness/sprints.json as a new phase (a Level 5 edit of a sacred file), or to seed /trine-eval:harness-kickoff where the repo has no harness yet.",
+  "generated_at": "2026-10-31",
+  "phases": [
+    { "number": 0, "title": "Baseline: meta-repo, decisions, sensor fix, billing check, carry-overs" },
+    { "number": 1, "title": "Definition of done for research, writing and quantitative work" },
+    { "number": 2, "title": "Confirm seam and governance join" },
+    { "number": 3, "title": "Archivist and cross-project work record" },
+    { "number": 4, "title": "Discovery Gate: scope as a governed, re-reviewable package" },
+    { "number": 5, "title": "Headless parity in the cloud, containment, runtime gate" },
+    { "number": 6, "title": "Measurement and ceremony re-audit (standing)" }
+  ],
+  "sprints": [
+    {
+      "id": "P0-CC-0",
+      "phase": 0,
+      "repo": "cloud-catcher",
+      "number": 0,
+      "title": "Bootstrap the meta-repo: plan, ADRs, manifest, workspace, index schema, archivist task",
+      "features": ["PLAN.md", "plan/sprints.json", "decisions/ADR-0001..0005", "manifest.json", "workspace/sync.sh", "index/work-record.schema.json", "archivist/briefing-task.md"],
+      "estimated_complexity": "low",
+      "dependencies": [],
+      "exit_criteria": ["Level 5 ratification of ADR-0001..0005 recorded in decisions/README.md"],
+      "level5_decisions": ["ratify the five ADRs", "confirm the phase order"]
+    },
+    {
+      "id": "P0-HC-1",
+      "phase": 0,
+      "repo": "henka-council",
+      "number": 9,
+      "title": "Replace the tool-call audit logger with the native PostToolUse implementation",
+      "features": [
+        "hooks/log-tool-call.sh rebuilt per auto-mate/docs/handoff/council-native-hooks (reads tool_input and cwd from the hook payload; repo root from the payload cwd; writes only when .council/ exists)",
+        "hooks/win/log-tool-call.ps1 parity or an explicit deferral recorded as a henka record",
+        "andon_pull_count removed from the hook; andon becomes a policy evaluated over audit-log.jsonl in council-autorun Step 1E",
+        "tests: fixture payloads for Read, Edit, Bash, Grep; assertion of 0 unknown summaries and no .council/ created outside the repo root"
+      ],
+      "estimated_complexity": "low",
+      "dependencies": [],
+      "exit_criteria": ["one full sprint in a governed repo with 0 audit entries carrying file_path=unknown", "no phantom .council/ directories"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P0-OPS-1",
+      "phase": 0,
+      "repo": "operator",
+      "number": null,
+      "title": "Billing surface check and August-review carry-overs",
+      "features": [
+        "one headless `claude -p` run with the API key set; confirm the usage line in the Console; record in ADR-0001 addendum",
+        "re-validate undocumented agent frontmatter (context: fork, thinking:) against the current Claude Code runtime before the next harness sprint",
+        "trine-eval: review the default model and pricing table against the current price list (Opus 5.5 is current; its effort default is medium, set it explicitly)",
+        "auto-mate docs and cloud-setup: pin no-mistakes at v1.48.0"
+      ],
+      "estimated_complexity": "low",
+      "dependencies": [],
+      "exit_criteria": ["ADR-0001 addendum written"],
+      "level5_decisions": ["which surface should spend the credits"]
+    },
+    {
+      "id": "P1-TE-1",
+      "phase": 1,
+      "repo": "trine-eval",
+      "number": 1,
+      "title": "Rubrics and contract guidance for research reports and quantitative models",
+      "features": [
+        "skills/eval-rubric/rubrics/research-report.md: dimensions for claim traceability (every load-bearing claim cites a source with a re-runnable check), reasoning quality, scope fidelity to the contract, prose quality; hard threshold: untraceable load-bearing claims fail the sprint",
+        "skills/eval-rubric/rubrics/quant-model.md: dimensions for correctness against closed-form or reference cases, reproducibility (seed determinism, pinned inputs), statistical validity (convergence, confidence intervals, calibration or backtest where applicable), code quality; hard thresholds: no reference-case parity test, or non-deterministic results under a fixed seed",
+        "rubrics/README.md decision guide rows and eval-rubric SKILL.md listing",
+        "sprint-contract/SKILL.md: a 'document deliverable' subsection: behavioral criteria for documents (commands that check sources, figures regenerated from code, word or section budgets), bucket guidance",
+        "bootstrap-failures/templates/by-rubric/research-report.json and quant-model.json seeded from known failure modes (fabricated citations, unlabeled assumptions, silent unit errors, overfit backtests)"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": [],
+      "exit_criteria": ["both rubrics load through eval-rubric", "weights sum to 100", "each has at least one hard threshold"],
+      "level5_decisions": ["rubric weights and hard thresholds"]
+    },
+    {
+      "id": "P1-TE-2",
+      "phase": 1,
+      "repo": "trine-eval",
+      "number": 2,
+      "title": "Kickoff, evaluator tooling and summary support for the two project types",
+      "features": [
+        "harness-kickoff: project types research-report and quant-model with rubric mapping; detection hints (reports/ or docs/ with front matter; notebooks or model packages)",
+        "evaluator_tools: python available for numeric checks; playwright never for these types",
+        "harness-summary: N/A handling for edge-case and smoke sections; per-dimension rollups for the new rubrics",
+        "a worked example contract per type under skills/sprint-contract/examples/"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P1-TE-1"],
+      "exit_criteria": ["kickoff on a fixture research project writes a config.json with the right rubric", "a fixture quant sprint grades end to end"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P1-VAL-1",
+      "phase": 1,
+      "repo": "a scratch project repo (new, e.g. risk-engine-spike)",
+      "number": null,
+      "title": "Validation set: five real tasks through the harness with the new rubrics",
+      "features": [
+        "three research memos and two risk-model spikes drawn from current work",
+        "config.trials = 2 for the two quant sprints",
+        "harness-summary over the five; record first-round pass, pass^k, untestable-criterion rate"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P1-TE-2"],
+      "exit_criteria": ["at least 4 of 5 reach PASS within max_retries", "untestable criteria below 20% of criteria authored"],
+      "level5_decisions": ["which five tasks"]
+    },
+    {
+      "id": "P2-HC-2",
+      "phase": 2,
+      "repo": "henka-council",
+      "number": 10,
+      "title": "Human-approval log writer and the ratify-to-approval wiring",
+      "features": [
+        "scripts/append-approval.py writing .council/human-approvals.jsonl per human-approval-log-entry.schema.json",
+        "schema additive fields: artifact_path, artifact_sha256, grants[], scope",
+        "nemawashi Stage 4 Ratify, the minor single-prompt path, council-review --restore-autonomy and from-plan confirmation write entries",
+        "hooks/enforce-append-only.sh covers human-approvals.jsonl",
+        "schema fixtures valid/invalid"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P0-HC-1"],
+      "exit_criteria": ["Stage 4 on a fixture decision produces an APPR entry linking DEC and sha256", "Write/Edit on the file is blocked by the hook"],
+      "level5_decisions": ["ratify ADR-0003"]
+    },
+    {
+      "id": "P2-AM-1",
+      "phase": 2,
+      "repo": "auto-mate",
+      "number": 1,
+      "title": "Scope reference as the execution precondition",
+      "features": [
+        "models.ScopeRef and Task.scope",
+        "council adapter: reads .council/state/effective-autonomy.json and .council/human-approvals.jsonl from the task repo; absent .council/ means ungoverned",
+        "validation before worktree provisioning: approval exists, approved, artifact_sha256 matches git show <base_ref>:<path>, grants cover push-branch and open-draft-pr",
+        "CLI: --scope PATH --approval APPR-NNNN; AUTOMATE_REQUIRE_SCOPE",
+        "tests against a governed fixture repo and an ungoverned one; docs/architecture.md update"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P2-HC-2"],
+      "exit_criteria": ["the four verification cases in ADR-0003 pass as tests"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P2-AM-2",
+      "phase": 2,
+      "repo": "auto-mate",
+      "number": 2,
+      "title": "Persisted run records, autonomy-aware shipping, verdict evidence",
+      "features": [
+        "RunRecord persisted to <workspace_root>/runs/<repo-slug>/<task-id>-<utc>.json on every run (and ReviewRecord alongside reviews)",
+        "Verdict.evidence (verdict line and findings) and Verdict.autonomy_at_gate",
+        "ship skipped with status gated and a recorded reason when effective autonomy is 2 or lower",
+        "RunRecord.scope echoes the ScopeRef and approval id",
+        "docs: cloud division of labor, AUTOMATE_WORKSPACE_ROOT pointing at a cloud-catcher checkout's runs/ in cloud environments"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P2-AM-1"],
+      "exit_criteria": ["Level 1 fixture: gated, no push, reason names the floor", "Level 4 fixture: shipped, record on disk with evidence"],
+      "level5_decisions": ["ratify ADR-0002"]
+    },
+    {
+      "id": "P2-HC-3",
+      "phase": 2,
+      "repo": "henka-council",
+      "number": 11,
+      "title": "Ingest auto-mate run records into the henka register",
+      "features": [
+        "scripts/ingest-run-record.py: maps verdicts to henka records (Method / gate-verdict / passive; impact by verdict and ship outcome; detected_by auto-mate/<gate>; evidence cites run path and verdict line); appends via append-henka.py; idempotent on run path",
+        "council-autorun Step 1A invokes it over a configured runs directory before the pre-sprint check",
+        "council-detect reports pending-ingest counts",
+        "tests with recorded run-record fixtures from P2-AM-2"
+      ],
+      "estimated_complexity": "low",
+      "dependencies": ["P2-AM-2"],
+      "exit_criteria": ["one henka record per verdict", "second ingest appends nothing"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P3-CC-1",
+      "phase": 3,
+      "repo": "cloud-catcher",
+      "number": 1,
+      "title": "Work-record builder",
+      "features": [
+        "scripts/build-index.py (stdlib only): reads sibling repos per workspace/repos.json and the sources in index/README.md; writes index/work-record.json valid against the schema and index/briefing.md",
+        "signal derivation exactly as index/README.md states, with reasons as file:field=value",
+        "decisions_pending ranking",
+        "tests with two fixture projects (one converging, one halted)"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P2-HC-3"],
+      "exit_criteria": ["schema-valid output over the three component repos plus one fixture project", "idempotent re-run produces identical output except generated_at"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P3-CC-2",
+      "phase": 3,
+      "repo": "cloud-catcher + cloud environment",
+      "number": 2,
+      "title": "Archivist: scheduled task, Drive layout, captures, notifications",
+      "features": [
+        "cloud environment with a setup script that runs workspace/sync.sh and installs automate",
+        "scheduled task from archivist/briefing-task.md with the Google Drive connector, daily at a jittered off-peak time",
+        "Drive layout per ADR-0004 created; briefing and index mirrored; captures filed into inbox/<project>/",
+        "push notification when decisions_pending is non-empty or any project is halted",
+        "work-record branch convention; main untouched by the task"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P3-CC-1"],
+      "exit_criteria": ["two projects in one briefing", "a seeded pending decision reaches Drive and a notification", "a seeded capture is filed"],
+      "level5_decisions": ["approve the Drive layout, the schedule, and the connector grant"]
+    },
+    {
+      "id": "P4-HC-4",
+      "phase": 4,
+      "repo": "henka-council",
+      "number": 12,
+      "title": "Discovery Gate reviewers and schemas",
+      "features": [
+        "agents/spec-specialist.md (steelman), agents/constraint-extractor.md (adversary), agents/criteria-architect.md (adjudicator) per docs/design/discovery_gate.md §3 and §4",
+        "gate-mode flags for henkaten-detector and architect",
+        "agents/gate-orchestrator.md as a thin shim over orchestrator.md",
+        "schemas: constraint-catalog, acceptance-criteria-set, gate-decision; fixtures",
+        "templates/gate-position-paper.md"
+      ],
+      "estimated_complexity": "high",
+      "dependencies": ["P2-HC-2"],
+      "exit_criteria": ["each reviewer returns evidence_class, confidence and verification fields on a fixture package", "schemas validate the fixtures"],
+      "level5_decisions": ["confirm the ratified roster has not drifted"]
+    },
+    {
+      "id": "P4-HC-5",
+      "phase": 4,
+      "repo": "henka-council",
+      "number": 13,
+      "title": "council-gate skill: two-wave dispatch, decision states, Goldfish wave, re-entry",
+      "features": [
+        "skills/council-gate/SKILL.md: wave 1 four reviewers, wave 2 architect synthesis; four decision states with outputs under .council/proposed/GATE-NNNN.md",
+        "Goldfish wave: /egm-review on the spec draft in a zero-context session (EGM pinned to a commit); fallback to a forked evaluator subagent when the plugin is absent",
+        "inputs: captures from cloud-catcher inbox/<project>/ and persisted plans from from-plan",
+        "re-entry: early-warning triggers from the henkaten projection; re-review when a sacred file changes mid-flight (henka record plus gate re-entry)",
+        "hand-off: a passing package feeds harness-kickoff or a new sprints.json phase; Stage 4 ratification writes the APPR entry with the package sha256"
+      ],
+      "estimated_complexity": "high",
+      "dependencies": ["P4-HC-4", "P3-CC-2"],
+      "exit_criteria": ["a capture becomes a ratified package consumable by harness-kickoff without manual edits", "a mid-flight spec.md edit triggers re-review"],
+      "level5_decisions": ["ratify the first real package"]
+    },
+    {
+      "id": "P5-AM-3",
+      "phase": 5,
+      "repo": "auto-mate + cloud environment",
+      "number": 3,
+      "title": "Live run lifecycle from a cloud session",
+      "features": [
+        "per-stage dry-run (crew, gates, ship) instead of one global switch",
+        "GitWorktreeProvider usable for the run lifecycle, not only review",
+        "ship fallback when no-mistakes' daemon is unavailable in the container: push branch and open a draft PR through the session's GitHub access, recorded as such in the run record",
+        "setup script installs treehouse and no-mistakes where they work; documents where they do not"
+      ],
+      "estimated_complexity": "high",
+      "dependencies": ["P2-AM-2"],
+      "exit_criteria": ["one real task shipped from a cloud session end to end with a persisted run record and ingested verdicts"],
+      "level5_decisions": []
+    },
+    {
+      "id": "P5-AM-4",
+      "phase": 5,
+      "repo": "auto-mate",
+      "number": 4,
+      "title": "Containment: budgets, scoped tools, resource-cap records",
+      "features": [
+        "per-task caps in Settings: wall-clock, max turns, token ceiling read from the agent's JSON output usage",
+        "crew tool deny-list and read-only gate agents (`--bare` where API-key auth is available)",
+        "a resource-cap verdict recorded when a cap fires, ingested as response_type resource-cap",
+        "secrets only via environment configuration; never on the command line"
+      ],
+      "estimated_complexity": "medium",
+      "dependencies": ["P5-AM-3"],
+      "exit_criteria": ["a deliberately overlong fixture task ends gated with a resource-cap verdict and an ingested henka record"],
+      "level5_decisions": ["Phase 5 runtime gate per ADR-0001: stay or migrate the headless path"]
+    },
+    {
+      "id": "P6-POLICY",
+      "phase": 6,
+      "repo": "governed projects (via council retrospectives)",
+      "number": null,
+      "title": "Standing measurement and ceremony re-audit",
+      "features": [
+        "trial count risk-tiered by policy (pass^3 for parity or inference-core changes; pass^1 with forked evaluator otherwise), proposed by the retrospective and ratified through nemawashi",
+        "council fan-out at cycle boundaries; per-sprint henkaten detection passive (log-derived)",
+        "cross-project harness-summary from the work record: saturation and failure patterns across repos",
+        "memory decision from index/retrieval-misses.jsonl",
+        "PDCA standing question: which component has the current model made unnecessary"
+      ],
+      "estimated_complexity": "n/a",
+      "dependencies": ["P3-CC-2"],
+      "exit_criteria": ["one PDCA cycle has produced at least one ratified standard-work change from cross-project data"],
+      "level5_decisions": ["each standard-work proposal"]
+    }
+  ]
+}

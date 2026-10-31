@@ -1,0 +1,24 @@
+{
+  "root": "workspace",
+  "repos": [
+    {
+      "name": "auto-mate",
+      "url": "https://github.com/ats-kinoshita-iso/auto-mate",
+      "branch": "main",
+      "kind": "component"
+    },
+    {
+      "name": "henka-council",
+      "url": "https://github.com/ats-kinoshita-iso/henka-council",
+      "branch": "main",
+      "kind": "component"
+    },
+    {
+      "name": "trine-eval",
+      "url": "https://github.com/ats-kinoshita-iso/trine-eval",
+      "branch": "main",
+      "kind": "component"
+    }
+  ],
+  "_note": "Governed project repos (the ones with .harness/ and .council/) are added here with kind=project so the archivist indexes them."
+}

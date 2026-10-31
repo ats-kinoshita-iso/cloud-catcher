@@ -1,0 +1,9 @@
+# Sibling checkouts created by workspace/sync.sh
+workspace/*/
+
+# Local scratch
+.env
+.env.local
+__pycache__/
+*.pyc
+.claude/settings.local.json
