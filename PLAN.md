@@ -112,9 +112,12 @@ measures, labels, never prompt or response bodies). Two capture paths, both file
 
 One place to study: the archivist copies every event into
 `index/diagnostics/events-<YYYY-MM>.jsonl`, deduplicated by event id, and writes a rollup
-per project into the work record. The questions the data must answer are listed in ADR-0006
-and are the acceptance test for the schema; `docs/queries.md` holds one query per question.
-An OpenTelemetry tier is optional and comes later, once a backend is chosen. Improvements
+per project into the work record. The study tool is DuckDB over those files; `docs/queries.md`
+holds one DuckDB query per question in ADR-0006, and those questions are the acceptance test
+for the schema. Rollups join on `session_id` and never count a crew session twice. An
+OpenTelemetry tier is optional and comes later, once a backend that ingests OTLP metrics and
+logs is chosen (recommended default Grafana Cloud) and its host is on every cloud
+environment's network allowlist. Improvements
 flow through the channels that already exist: the retrospective in `pdca` mode and
 `harness-summary`'s ACI section read the rollups, and standard-work changes still go through
 nemawashi.

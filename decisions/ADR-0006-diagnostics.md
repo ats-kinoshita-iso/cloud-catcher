@@ -62,11 +62,47 @@ henka record cannot be put on one row.
    committed on the `work-record` branch) and writes rollups into each project's
    `diagnostics` block of the work record: tokens and cost for the last 7 and 30 days by
    source, cost per shipped run, cost per PASS sprint, cache share of input, tool failure rate,
-   compactions per session, subagent count per session.
-4. **Second tier, optional: OpenTelemetry export.** When a backend is chosen (Level 5),
-   cloud environments and local shells set `CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters,
-   and `OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<crew|gate|council|archivist>`. The
-   file-based tier stays authoritative; the backend is for queries the files make slow.
+   compactions per session, subagent count per session. The study tool is DuckDB over those
+   files: it reads JSONL directly, runs locally or inside a cloud session, and needs no
+   service. `docs/queries.md` holds one DuckDB query per question listed below, and the same
+   queries run over the council ledgers and harness transcripts, which are JSONL too. For
+   horizons longer than git comfortably holds, the same monthly files load into BigQuery with
+   `bq load`; that is an option, not a dependency.
+4. **Second tier, optional: OpenTelemetry export, one endpoint for everything.** Claude Code
+   emits metrics (`claude_code.token.usage`, `claude_code.cost.usage`) and events
+   (`api_request`, `tool_result`, `tool_decision`, `api_error`), so the backend must ingest
+   OTLP **metrics and logs**, not only traces. The recommended default is Grafana Cloud: one
+   OTLP endpoint for both signals, time-series dashboards for cost and tokens, nothing to host.
+   Honeycomb is the alternative when exploring event patterns matters more than time series.
+   Free-tier quotas of both were not verifiable from the planning session (their sites are
+   outside its allowed network domains); verify before choosing. The file tier stays
+   authoritative; the backend is for the queries files make slow.
+
+   Configuration is set once per cloud environment and once in the local shell profile,
+   never in repository settings, which Claude Code ignores for these variables. `claude -p`
+   inherits it, so crews and gates export without code changes; auto-mate overrides `layer`
+   per invocation.
+
+   ```bash
+   CLAUDE_CODE_ENABLE_TELEMETRY=1
+   OTEL_METRICS_EXPORTER=otlp
+   OTEL_LOGS_EXPORTER=otlp
+   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+   OTEL_EXPORTER_OTLP_ENDPOINT=https://<backend>
+   OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"
+   OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<interactive|crew|gate|archivist>
+   OTEL_METRICS_INCLUDE_REPOSITORY=true    # per-repo cost attribution; off by default
+   OTEL_METRICS_INCLUDE_ENTRYPOINT=true    # separates headless from interactive
+   # never set: OTEL_LOG_USER_PROMPTS, OTEL_LOG_ASSISTANT_RESPONSES,
+   #            OTEL_LOG_TOOL_DETAILS, OTEL_LOG_RAW_API_BODIES
+   ```
+
+   The backend's host must be added to every cloud environment's network allowlist, or
+   cloud sessions export nothing and report nothing. Langfuse stays what it is today: the
+   trace sink for `trine_eval`'s per-sample eval runs and judge calibration. It is not the
+   sink for session and run metrics; as far as is known its OpenTelemetry endpoint ingests
+   traces, and Claude Code's trace export is behind a beta flag. Verify when its docs are
+   reachable.
 5. **Privacy and retention.** No prompt or response bodies in any event; summaries are
    capped at 160 characters as the audit log already does; `OTEL_LOG_USER_PROMPTS` stays
    unset. `.council/diagnostics.jsonl` is append-only under the same hook as the other
@@ -76,8 +112,19 @@ henka record cannot be put on one row.
    data added as an input: the retrospective agent in `pdca` mode reads the project's rollup
    and the last cycle's events; `harness-summary`'s ACI section cites cost and consistency
    together; standard-work proposals that come out of either go through nemawashi as today.
-   The questions the data must be able to answer are listed below and are the acceptance test
-   for the schema.
+   Pattern studies are jishuken artifacts: on a cadence, run the queries in `docs/queries.md`
+   and write the findings under `.council/jishuken/` in the project they concern, or in this
+   repo when they span projects. The questions the data must be able to answer are listed
+   below and are the acceptance test for the schema.
+7. **One session, one cost.** A crew session that auto-mate invokes also fires the council's
+   `SessionEnd` hook whenever the council is project-scoped in that repo, so the same
+   `session_id` can appear as a `session` event and inside a run record. Rollups join on
+   `session_id` and never sum the two: cost and usage come from the run record
+   (`cost_source: claude-code-estimate`), tool counts and compactions come from the session
+   event, and `parent_session_id` links the crew to the session that ran `automate`.
+8. **Cardinality rule.** Metrics carry project, layer, model and effort only. Task ids,
+   sprint numbers, henka ids and approval ids live in events and files, never in metric
+   attributes.
 
 ## Questions the data must answer
 
@@ -93,6 +140,11 @@ henka record cannot be put on one row.
 10. Approval latency: time from a plan or contract being persisted to its approval entry.
 11. For research and quant sprints: traceability failures per report, parity-test failures per spike.
 
+The first three studies to run once data exists: effort level against gate verdicts and
+cost, since the gates embed whole diffs; cache share of input on gate prompts, expected near
+zero and fixable with a stable prefix; and sessions with sidechains but no verdict, the
+subagent-stall family (HK-0035) from bay-o-net.
+
 ## Alternatives considered
 
 - **OpenTelemetry only.** Rejected as the first tier: it needs a reachable backend from every
@@ -101,6 +153,10 @@ henka record cannot be put on one row.
 - **Parsing the console exporter.** Rejected: its format is not a stable contract.
 - **A metrics database now.** Rejected: measure first; the rollups decide what a database
   would need to hold.
+- **Langfuse as the sink for Claude Code's metrics and events.** Rejected: wrong signal
+  types; it keeps its role for eval traces.
+- **A self-hosted collector.** Rejected for now: one more service for one maintainer, and
+  cloud sessions would still need a reachable endpoint.
 
 ## Consequences
 
@@ -116,4 +172,10 @@ henka record cannot be put on one row.
   the sum over the transcript's assistant entries.
 - A headless fixture run yields a run record whose crew and gate usage are non-null, and the
   archivist derives `run`, `crew` and `gate` events from it with the same `task_id`.
-- The eleven questions above each have a documented query over `index/diagnostics/`.
+- The eleven questions above each have a documented DuckDB query over `index/diagnostics/`.
+- Dedupe: a fixture crew session present both as a session event and inside a run record
+  contributes one cost line and one tool-count line to the rollup, joined on `session_id`.
+- Cardinality: no metric attribute carries a task id, sprint number, henka id or approval id.
+- Before the OpenTelemetry tier is switched on: the backend's free tier confirmed, its host in
+  every cloud environment's allowlist, and one test session visible in the backend with
+  `project` and `layer` attributes.

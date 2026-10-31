@@ -343,7 +343,8 @@
         "tests with two fixture projects (one converging, one halted)",
         "copies new events from each repo's .council/diagnostics.jsonl and derives run/crew/gate events from runs/*.json into index/diagnostics/events-<YYYY-MM>.jsonl, deduplicated by event_id",
         "writes each project's diagnostics rollup block (7-day and 30-day tokens and cost by source, cost per shipped run, cost per PASS sprint, cache share, tool failure rate, compactions and subagents per session)",
-        "docs/queries.md: one documented query per question in ADR-0006"
+        "docs/queries.md: one DuckDB SQL query per question in ADR-0006, each tested against the fixture events",
+        "rollup dedupes on session_id: cost and usage from run records, tool counts and compactions from session events (ADR-0006 item 7)"
       ],
       "estimated_complexity": "medium",
       "dependencies": [
@@ -490,7 +491,7 @@
         "memory decision from index/retrieval-misses.jsonl",
         "PDCA standing question: which component has the current model made unnecessary",
         "retrospective pdca mode reads the project's diagnostics rollup and the cycle's events; harness-summary ACI section cites cost with consistency",
-        "OpenTelemetry tier (ADR-0006 tier 2): choose a backend (Level 5), set CLAUDE_CODE_ENABLE_TELEMETRY and OTLP exporters in cloud environments and local shells with OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<crew|gate|council|archivist>; prompts stay redacted"
+        "OpenTelemetry tier (ADR-0006 tier 2): choose a backend (Level 5; recommended default Grafana Cloud, alternative Honeycomb; must ingest OTLP metrics and logs), add its host to every cloud environment's network allowlist, set CLAUDE_CODE_ENABLE_TELEMETRY and OTLP exporters in environments and shells with OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<interactive|crew|gate|archivist>, OTEL_METRICS_INCLUDE_REPOSITORY=true and OTEL_METRICS_INCLUDE_ENTRYPOINT=true; prompts and tool details stay redacted"
       ],
       "estimated_complexity": "n/a",
       "dependencies": [

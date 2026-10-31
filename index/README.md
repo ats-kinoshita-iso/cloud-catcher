@@ -55,3 +55,8 @@ copies session events from each repo's `.council/diagnostics.jsonl` and derives
 run, crew and gate events from persisted run records. `docs/queries.md` (Phase 3)
 documents one query per question listed in ADR-0006, so a pattern study starts
 from a known-good query rather than from raw files.
+
+Rollup rules (ADR-0006 items 7 and 8): join on `session_id`; when a session
+appears both as a `session` event and inside a run record, cost and usage come
+from the run record and tool counts and compactions from the session event,
+never both. Queries are DuckDB SQL over the monthly files.
