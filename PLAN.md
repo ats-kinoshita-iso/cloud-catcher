@@ -41,7 +41,7 @@ Exit gates, all of which must hold:
 | Non-code work gradable | five-task research and quant set: at least 4 reach PASS within `max_retries`; first-round pass and pass^k reported | `harness-summary` |
 | Cross-project record | two projects in one briefing; a pending decision reaches Drive and a notification | `index/work-record.json`, Drive |
 | Headless parity | one real task shipped from a cloud session end to end with ingested verdicts | run record, PR |
-| Diagnostics coverage | every run record carries usage and cost; every session in a governed repo ends with one session event; each of ADR-0006's eleven questions has a documented query | `index/diagnostics/`, `docs/queries.md` |
+| Diagnostics coverage | every run record carries usage and cost; every non-empty settled process lifetime in a governed repo yields one session event (crews and gates: their run record, which has no usage for an agent auto-mate kills at its timeout), and coverage counts what the file tier misses (ADR-0006 A1); each of ADR-0006's eleven questions has a documented query | `index/diagnostics/`, `docs/queries.md` |
 
 ## 2. Ground truth (checked 2026-10-31)
 
@@ -100,10 +100,11 @@ ADR-0006 adds a diagnostics layer that runs through every phase rather than bein
 of its own. One event schema (`index/diagnostic-event.schema.json`: envelope, join keys,
 measures, labels, never prompt or response bodies). Two capture paths, both files in git:
 
-- **Interactive sessions.** A council `SessionEnd` hook sums the transcript's per-message
-  usage by model and effort, splits subagent usage, counts tool calls by tool from the
-  session's audit entries, counts compactions and subagents, and appends one `session`
-  event to `.council/diagnostics.jsonl`. Checked: every assistant entry in a Claude Code
+- **Interactive sessions.** Council hooks append one `session` event per settled process
+  lifetime to `.council/diagnostics.jsonl` (ADR-0006 A1): the lifetime's usage by model and
+  effort from the main transcript and the subagent files, its cost as the delta of Claude
+  Code's cumulative `cost-state`, its tool, compaction and subagent counts, cumulative cost
+  anchors and a deterministic event id. Checked: every assistant entry in a Claude Code
   transcript carries `message.usage` with input, output, cache-read and cache-creation
   tokens, plus `sessionId`, `effort` and `isSidechain`.
 - **Headless runs.** auto-mate invokes `claude -p` with `--output-format json` and parses
@@ -114,10 +115,12 @@ One place to study: the archivist copies every event into
 `index/diagnostics/events-<YYYY-MM>.jsonl`, deduplicated by event id, and writes a rollup
 per project into the work record. The study tool is DuckDB over those files; `docs/queries.md`
 holds one DuckDB query per question in ADR-0006, and those questions are the acceptance test
-for the schema. Rollups join on `session_id` and never count a crew session twice. An
-OpenTelemetry tier is optional and comes later, once a backend that ingests OTLP metrics and
-logs is chosen (recommended default Grafana Cloud) and its host is on every cloud
-environment's network allowlist. Improvements
+for the schema. Rollups sum session events, never take a session's latest event as its
+total, join on `session_id` and never count a crew session twice. For cloud sessions the
+OpenTelemetry tier is to be switched on (P0-OPS-1) as the backstop for lifetimes the file
+tier cannot hold (ADR-0006 A1), once decision 4's preconditions hold: Grafana Cloud's free
+tier confirmed, the account and endpoint from the human, and its host on every cloud
+environment's network allowlist. Elsewhere it stays optional. Improvements
 flow through the channels that already exist: the retrospective in `pdca` mode and
 `harness-summary`'s ACI section read the rollups, and standard-work changes still go through
 nemawashi.
@@ -143,14 +146,25 @@ Step 1E). PowerShell parity or a recorded deferral. Contract seeds:
   directory.
 - Should-NOT: no entry carries a non-null `andon_pull_count`.
 
-**P0-HC-2, henka-council: session diagnostics hook.** A `SessionEnd` hook that writes the
-`session` event described above; `PreCompact` and `SubagentStart` write marker lines it counts;
-the append-only hook and the rotation script cover `.council/diagnostics.jsonl`;
-`measure-projection-cost.py` appends a `projection-cost` event. The audit entry gains
-`session_id` and `tool_use_id` in P0-HC-1 so the two logs join. Contract seeds:
+**P0-HC-2, henka-council: session diagnostics hook.** Hooks that write the `session` events
+described above, one per settled process lifetime (ADR-0006 A1); compactions and subagents
+are counted from the transcript and the subagent files, with no marker hooks; with
+`AUTOMATE_RUN` set, council hooks write nothing; the append-only hook and the rotation script
+cover `.council/diagnostics.jsonl`; `measure-projection-cost.py` appends a `projection-cost`
+event. The audit entry gains `session_id` and `tool_use_id` in P0-HC-1 so the two logs join.
+henka-council's own docs and its schema fixtures move to one event per settled process
+lifetime and schema 1.1. The rework ships as a follow-up PR to henka-council #28: Stage 1,
+`SessionEnd`-only settled lifetime deltas; Stage 2, the `SessionStart` hook for the `/clear`
+hand-off, the fork base and recovery. Contract seeds:
 
-- behavioral, bucket 2: a fixture transcript with known totals ends in exactly one event
-  whose per-model totals equal the transcript sum.
+- behavioral, bucket 2: recorded fixture transcripts yield one event per non-empty settled
+  lifetime; per cost lineage the events' `cost_usd` add up to the last `cost-state`
+  (ADR-0006 A1's Verification states the fork and concurrent-resume cases, and what Stage 1
+  yields), and each event's tokens equal the transcript sum over its span.
+- behavioral, bucket 2: a redacted fixture of the real cloud session yields five events of
+  7.1773923, 27.49865245, 0.9899525, 152.047308 and 62.2513088 USD; a second firing on the
+  same state appends nothing.
+- Should-NOT: with `AUTOMATE_RUN` set, a fixture session changes nothing under `.council/`.
 - Should-NOT: no event contains prompt or response text (a grep over the fixture's known
   prompt string finds nothing).
 
@@ -163,7 +177,10 @@ lifecycle demo still runs. P2-AM-2 persists what this captures.
 **P0-OPS-1, operator.** Billing surface check (one headless run with the API key; Console
 usage line; addendum to ADR-0001). Re-validate `context: fork` and `thinking:` frontmatter.
 Review trine-eval's default model and pricing table against the current price list. Pin
-no-mistakes at v1.48.0 in docs and setup script.
+no-mistakes at v1.48.0 in docs and setup script. Switch on the OpenTelemetry tier for cloud
+sessions (ADR-0006 A1): confirm Grafana Cloud's free tier, take the account and endpoint from
+the human, add the host to every cloud environment's allowlist, set ADR-0006 decision 4's
+variables there, and see one test session in the backend with `project` and `layer`.
 
 ### Phase 1: Definition of done for research, writing and quantitative work
 
@@ -200,9 +217,11 @@ Example criterion the quant rubric expects to see in contracts:
 numeric checks, playwright never; summary N/A handling; one worked example contract per type.
 
 **P1-TE-3, trine-eval: cost next to pass rates.** Per-sprint cost and tokens in
-`sprint-state.json` when a session event or run record exists for the sprint;
-`harness-summary` reports cost per PASS sprint, cost per criterion, cache share of input and
-compactions per session next to consistency.
+`sprint-state.json`: the sum of the settled session events booked to the sprint plus its run
+records. A lifetime still open at sprint end is booked when it settles, to the sprint of its
+`ts` (ADR-0006 A1; finer splits are an A1 open item). `harness-summary` reports cost per PASS
+sprint, cost per criterion, cache share of input and compactions per session next to
+consistency.
 
 **P1-VAL-1, a scratch project.** Five real tasks (three research memos, two risk-model
 spikes) through `harness-sprint`, `trials = 2` on the quant sprints, then `harness-summary`.
@@ -233,7 +252,10 @@ one per plan, not one per task.
 `<workspace_root>/runs/<repo-slug>/<task-id>-<utc>.json`, including the crew and gate usage
 from P0-AM-0; `Verdict.evidence` and `Verdict.autonomy_at_gate`; ship skipped with status `gated` when the floor is at or below
 Level 2. In cloud environments the workspace root points at a cloud-catcher checkout's
-`runs/`, pushed to the `work-record` branch after the run.
+`runs/`, pushed to the `work-record` branch after the run. Two ADR-0006 A1 items: the crew
+guard, `AUTOMATE_RUN` set for every crew and gate so that council hooks write nothing into the
+worktrees auto-mate commits; and each crew's lifetime event carried in the run record, as the
+source of crew tool counts and compactions.
 
 **P2-HC-3, henka-council: ingest.** `scripts/ingest-run-record.py` maps verdicts to henka
 records (Method, `gate-verdict`, passive, impact by verdict and ship outcome, evidence citing
@@ -253,8 +275,10 @@ and `index/briefing.md`. Signals derived exactly as the README states, each with
 `file:field=value` reason. The same script copies new diagnostic events into
 `index/diagnostics/events-<YYYY-MM>.jsonl`, derives run, crew and gate events from run
 records, writes each project's diagnostics rollup, and ships `docs/queries.md` with one query
-per ADR-0006 question. Tests with two fixture projects. This repo gets its own harness for
-this sprint (`cli-tool` rubric).
+per ADR-0006 question. Once P0-OPS-1 has connected the OpenTelemetry backend, it also takes
+from the backend the spend of cloud sessions whose last lifetime never reached git (ADR-0006
+A1). Tests with two fixture projects. This repo gets its own harness for this sprint
+(`cli-tool` rubric).
 
 **P3-CC-2, cloud-catcher and cloud environment: the archivist.** An environment whose setup
 script runs `workspace/sync.sh` and installs `automate`; a scheduled task from
@@ -312,10 +336,11 @@ Level 5.
 Through the council's own retrospective to nemawashi to standard-work pipeline: trial count
 risk-tiered by policy; council fan-out at cycle boundaries with passive per-sprint detection;
 cross-project `harness-summary` from the work record; the retrospective in `pdca` mode
-reading the diagnostics rollups; the OpenTelemetry tier once a backend is chosen
-(`CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters, resource attributes naming project and
-layer, prompts left redacted); the memory decision from `index/retrieval-misses.jsonl`; the
-standing PDCA question, which component has the current model made unnecessary.
+reading the diagnostics rollups; the OpenTelemetry tier beyond cloud sessions, which get it
+in P0-OPS-1 (`CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters, resource attributes naming
+project and layer, prompts left redacted); the memory decision from
+`index/retrieval-misses.jsonl`; the standing PDCA question, which component has the current
+model made unnecessary.
 
 ## 5. Order and dependencies
 
@@ -334,13 +359,13 @@ run records. Phase 6 starts once the work record exists.
 
 | When | Decision |
 |---|---|
-| Now | none open; ADR-0001 to ADR-0006 ratified 2026-10-31 |
-| Phase 0 | Which surface should spend the API credits |
+| Now | ADR-0006 A1's open items: the `SessionEnd` budget variable, `.council/*.jsonl merge=union`, hashing MCP tool names, sprint splits finer than one lifetime, `--session-id` for auto-mate's children. ADR-0001 to ADR-0006 ratified 2026-10-31; A1's decisions D1 to D4 taken 2026-11-06 |
+| Phase 0 | Which surface should spend the API credits; the OpenTelemetry account and endpoint for cloud sessions (ADR-0006 A1) |
 | Phase 1 | The five validation tasks; rubric weights and hard thresholds |
 | Phase 3 | Drive layout, archivist schedule, connector grant |
 | Phase 4 | The first real gate package |
 | Phase 5 | Stay on `claude -p` or migrate the headless path |
-| Phase 6 | Each standard-work proposal; the OpenTelemetry backend, or none |
+| Phase 6 | Each standard-work proposal; the OpenTelemetry tier beyond cloud sessions, or none |
 
 ## 7. Risks and watch items
 
@@ -366,9 +391,14 @@ run records. Phase 6 starts once the work record exists.
   `session_id_inherited`; rollups then join such runs on the task id, not the session id.
   Check whether the same happens from a plain shell before relying on session ids from
   crews run by the archivist.
-- **Hook event availability.** `SessionEnd`, `PreCompact` and `SubagentStart` are documented
-  today; P0-HC-2 verifies them on the installed Claude Code version and falls back to `Stop`
-  if one is missing.
+- **Crew guard not in effect yet.** Council hooks write nothing when `AUTOMATE_RUN` is set
+  (ADR-0006 A1), but auto-mate sets it only from P2-AM-2. Until then, in a governed repo
+  where the council is active, whatever the council hooks write in a crew's worktree is
+  committed by auto-mate's `git add -A` and makes the crew count as changed.
+- **Hook event availability.** P0-HC-2 relies on `SessionEnd` and, in its second stage,
+  `SessionStart`; both were probed on Claude Code 2.1.318 (ADR-0006 A1). The transcript fields
+  its deriver reads are internals that can change between releases, so P0-HC-2's recorded
+  fixtures re-check them on the installed Claude Code version.
 
 ## 8. Running this plan with the stack itself
 

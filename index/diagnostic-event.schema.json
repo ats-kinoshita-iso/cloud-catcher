@@ -2,14 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "diagnostic-event.schema.json",
   "title": "DiagnosticEvent",
-  "description": "One diagnostic event about the stack's own behavior: a session, a headless run, a gate verdict, a sprint evaluation, a compaction, a projection-cost measurement, a retrieval miss. Written by the council's SessionEnd hook (.council/diagnostics.jsonl), derived by the archivist from auto-mate run records, and copied into index/diagnostics/events-<YYYY-MM>.jsonl. Never contains prompt or response bodies. See decisions/ADR-0006-diagnostics.md.",
+  "description": "One diagnostic event about the stack's own behavior: a process lifetime of a session, a headless run, a gate verdict, a sprint evaluation, a compaction, a projection-cost measurement, a retrieval miss. Session events are written into .council/diagnostics.jsonl by the council's session diagnostics hooks and their backfill command, one per non-empty process lifetime that has ended (settled or interrupted); run, crew and gate events are derived by the archivist from auto-mate run records; all are copied into index/diagnostics/events-<YYYY-MM>.jsonl. Never contains prompt or response bodies. See decisions/ADR-0006-diagnostics.md and its amendment A1.",
   "type": "object",
   "required": ["event_id", "ts", "source", "kind", "project", "schema_version"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
-    "event_id": { "type": "string", "description": "UUID; the deduplication key when events are copied into the index." },
-    "ts": { "type": "string", "format": "date-time", "description": "When the measured thing ended, UTC." },
+    "schema_version": { "type": "string", "enum": ["1.0", "1.1"], "description": "1.1 adds lifetime, cost_state_usage_by_model and counts.tool_failures_by_tool; a 1.0 event carries none of them. A kind=session event must be 1.1; other kinds may stay 1.0." },
+    "event_id": { "type": "string", "description": "UUID; the deduplication key when events are copied into the index. For kind=session: UUIDv5 in namespace 5f0c2b8e-2a7d-4d38-9a51-1c2f1d6e2006 over 'session-lifetime|<session_id>|<lifetime.anchor>', so every observer of a lifetime writes the same id." },
+    "ts": { "type": "string", "format": "date-time", "description": "When the measured thing ended, UTC. For kind=session: the latest timestamp among the lifetime's own entries, main transcript or subagent files, never the hook's clock." },
     "source": {
       "type": "string",
       "enum": ["claude-code-session", "auto-mate", "trine-eval", "henkaten-council", "archivist", "otel"],
@@ -18,15 +18,15 @@
     "kind": {
       "type": "string",
       "enum": ["session", "run", "crew", "gate", "sprint-eval", "compaction", "subagent", "projection-cost", "retrieval-miss", "archivist-cycle"],
-      "description": "What the event measures."
+      "description": "What the event measures. session: one process lifetime of one session that has ended, either settled (its closing cost-state exists; outcome ended) or interrupted (none was written; outcome interrupted); schema 1.1. Its measures are deltas over that lifetime, and a session's total is the sum of its events, never its latest event."
     },
     "project": { "type": "string", "description": "Repository name as listed in workspace/repos.json." },
 
     "session_id": { "type": ["string", "null"], "description": "Claude Code session id; the join key across audit entries, transcripts, run records and OTel." },
-    "parent_session_id": { "type": ["string", "null"], "description": "For a headless crew or gate: the session that invoked automate, when known." },
+    "parent_session_id": { "type": ["string", "null"], "description": "For a headless crew or gate: the session that invoked automate, when known. A session event's fork and /clear links are in lifetime." },
     "task_id": { "type": ["string", "null"], "description": "auto-mate task id." },
     "run_path": { "type": ["string", "null"], "description": "Path of the persisted run record this event was derived from." },
-    "sprint": { "type": ["integer", "string", "null"], "description": "Sprint context at the time, from .harness/sprint-state.json." },
+    "sprint": { "type": ["integer", "string", "null"], "description": "Sprint context at the end of the measured thing, from .harness/sprint-state.json. For kind=session, lifetime.sprint_at_start holds the start." },
     "phase": { "type": ["integer", "null"] },
     "agent_name": { "type": ["string", "null"], "description": "Subagent or gate name when the event is about one agent." },
     "tool_use_id": { "type": ["string", "null"] },
@@ -37,21 +37,26 @@
 
     "model": { "type": ["string", "null"] },
     "effort": { "type": ["string", "null"], "enum": ["low", "medium", "high", "xhigh", "max", null] },
-    "usage": { "$ref": "#/definitions/usage" },
+    "usage": { "$ref": "#/definitions/usage", "description": "For kind=session: the lifetime's own requests, each requestId once, over the main transcript and the session's subagent files; entries a fork copied from its parent are left out." },
     "usage_by_model": {
       "type": "object",
       "additionalProperties": { "$ref": "#/definitions/usage" },
-      "description": "Per-model totals; keys are model ids."
+      "description": "Per-model totals; keys are model ids. Same source as usage."
     },
-    "sidechain_usage": { "$ref": "#/definitions/usage", "description": "The share of usage attributable to subagents (transcript entries with isSidechain true)." },
-    "cost_usd": { "type": ["number", "null"], "minimum": 0 },
+    "sidechain_usage": { "$ref": "#/definitions/usage", "description": "The share of usage attributable to subagents (transcript entries with isSidechain true; for kind=session, the session's subagent files)." },
+    "cost_state_usage_by_model": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/cost_state_usage" },
+      "description": "For kind=session: the delta of the cost-state modelUsage over the lifetime, per model; keys are model ids. It includes calls no transcript shows, such as compaction and title generation, and is never added to usage. Absent when cost_usd is null."
+    },
+    "cost_usd": { "type": ["number", "null"], "minimum": 0, "description": "For kind=session: the closing cost-state's totalCostUSD minus the cost-state the process restored at start (0 after startup or /clear; the parent's cost at the fork point for a fork). Null when that base is unknown or the lifetime was interrupted, and then the event carries no other cost-state figure; no estimate is ever written here." },
     "cost_source": {
       "type": ["string", "null"],
       "enum": ["claude-code-estimate", "price-table", "backend", null],
-      "description": "claude-code-estimate: total_cost_usd reported by claude -p; price-table: computed from tokens and a price table; backend: from the OTel backend or Console."
+      "description": "claude-code-estimate: Claude Code's own figure (total_cost_usd reported by claude -p, or a session lifetime's cost-state delta); price-table: computed from tokens and a price table (never for kind=session); backend: from the OTel backend or Console, which the archivist uses only for cloud spend the file tier does not hold (ADR-0006 A1). For kind=session: claude-code-estimate when cost_usd is a number, null when it is null."
     },
-    "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
-    "api_duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "duration_ms": { "type": ["integer", "null"], "minimum": 0, "description": "For kind=session: the cost-state totalDuration delta from the restored base to the closing cost-state. In local claude -p probes it matched the time the process held this session id to within 50-900 ms: its whole uptime, unless /clear split the process into two lifetimes. In the cloud, equal-total cost-state re-writes after the closing one keep adding to totalDuration, so the delta can be shorter than the process's uptime. Null when cost_usd is null." },
+    "api_duration_ms": { "type": ["integer", "null"], "minimum": 0, "description": "For kind=session: the cost-state totalAPIDuration delta. Null when cost_usd is null." },
     "thinking_duration_ms": { "type": ["integer", "null"], "minimum": 0 },
     "num_turns": { "type": ["integer", "null"], "minimum": 0 },
 
@@ -62,8 +67,9 @@
         "tool_calls": { "type": "integer", "minimum": 0 },
         "tool_calls_by_tool": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "tool_failures": { "type": "integer", "minimum": 0 },
-        "subagents": { "type": "integer", "minimum": 0 },
-        "compactions": { "type": "integer", "minimum": 0 },
+        "tool_failures_by_tool": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }, "description": "Tool failures per tool name (schema 1.1)." },
+        "subagents": { "type": "integer", "minimum": 0, "description": "For kind=session: the larger of agent files in the lifetime's time window and Agent or Task launches." },
+        "compactions": { "type": "integer", "minimum": 0, "description": "For kind=session: compact_boundary entries in the lifetime." },
         "api_retries": { "type": "integer", "minimum": 0 },
         "permission_denials": { "type": "integer", "minimum": 0 },
         "andon_signals": { "type": "integer", "minimum": 0 },
@@ -77,10 +83,12 @@
 
     "outcome": {
       "type": ["string", "null"],
-      "description": "Terminal state in the producer's own vocabulary: shipped, gated, no_changes, failed for runs; PASS, FAIL, PARTIAL for sprint evals; VERDICT: PASS or FAIL for gates; ended, interrupted for sessions."
+      "description": "Terminal state in the producer's own vocabulary: shipped, gated, no_changes, failed for runs; PASS, FAIL, PARTIAL for sprint evals; VERDICT: PASS or FAIL for gates; ended, interrupted for sessions (interrupted: no closing cost-state, so cost_usd is null)."
     },
     "outcome_reason": { "type": ["string", "null"], "maxLength": 160 },
     "cap_hit": { "type": ["string", "null"], "enum": ["none", "time", "turns", "budget", "tokens", "context", null] },
+
+    "lifetime": { "$ref": "#/definitions/lifetime" },
 
     "labels": {
       "type": "object",
@@ -89,6 +97,88 @@
     },
     "summary": { "type": ["string", "null"], "maxLength": 160, "description": "Optional one-line human note. Never a prompt or a response." }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "session" } }, "required": ["kind"] },
+      "then": {
+        "required": ["session_id", "lifetime", "usage", "cost_usd", "outcome"],
+        "properties": {
+          "schema_version": { "const": "1.1" },
+          "event_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+          "session_id": { "type": "string", "minLength": 1 },
+          "lifetime": { "type": "object" },
+          "usage": { "type": "object" },
+          "cost_usd": { "type": ["number", "null"] },
+          "cost_source": { "enum": ["claude-code-estimate", null] },
+          "outcome": { "enum": ["ended", "interrupted"] }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "outcome": { "const": "interrupted" } }, "required": ["outcome"] },
+            "then": {
+              "properties": {
+                "cost_usd": { "type": "null" },
+                "lifetime": {
+                  "type": "object",
+                  "properties": {
+                    "anchor": { "type": "string", "pattern": "^open:" },
+                    "end_reason": { "const": "none" },
+                    "cum_cost_end_usd": { "type": "null" },
+                    "recovered": { "enum": ["at_start", "backfill", "sweep"] }
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "lifetime": {
+                  "type": "object",
+                  "properties": {
+                    "anchor": { "type": "string", "pattern": "^cs:" },
+                    "end_reason": { "not": { "const": "none" } },
+                    "cost_lineage": { "type": "string" },
+                    "cum_cost_end_usd": { "type": "number" }
+                  }
+                }
+              },
+              "if": { "properties": { "lifetime": { "type": "object", "properties": { "cum_cost_start_usd": { "type": "null" } } } } },
+              "then": { "properties": { "cost_usd": { "type": "null" } } },
+              "else": { "properties": { "cost_usd": { "type": "number" } } }
+            }
+          },
+          {
+            "if": { "properties": { "cost_usd": { "type": "null" } }, "required": ["cost_usd"] },
+            "then": {
+              "properties": {
+                "cost_source": { "type": "null" },
+                "cost_state_usage_by_model": false,
+                "duration_ms": { "type": "null" },
+                "api_duration_ms": { "type": "null" },
+                "lifetime": {
+                  "type": "object",
+                  "properties": {
+                    "days": { "type": "object", "additionalProperties": { "type": "object", "properties": { "cost_usd": { "type": "null" } } } }
+                  }
+                }
+              }
+            },
+            "else": { "required": ["cost_source"], "properties": { "cost_source": { "const": "claude-code-estimate" } } }
+          }
+        ]
+      },
+      "else": { "not": { "required": ["lifetime"] } }
+    },
+    {
+      "if": { "properties": { "schema_version": { "const": "1.0" } }, "required": ["schema_version"] },
+      "then": {
+        "properties": {
+          "lifetime": false,
+          "cost_state_usage_by_model": false,
+          "counts": { "type": "object", "properties": { "tool_failures_by_tool": false } }
+        }
+      }
+    }
+  ],
   "definitions": {
     "usage": {
       "type": "object",
@@ -99,6 +189,73 @@
         "output_tokens": { "type": "integer", "minimum": 0 },
         "cache_read_input_tokens": { "type": "integer", "minimum": 0 },
         "cache_creation_input_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cost_state_usage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens"],
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "cache_read_input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_input_tokens": { "type": "integer", "minimum": 0 },
+        "cost_usd": { "type": "number", "minimum": 0, "description": "This model's costUSD delta over the lifetime; the per-model values add up to the event's cost_usd." }
+      }
+    },
+    "lifetime": {
+      "type": "object",
+      "description": "kind=session only: one Claude Code process's tenure on one session id, from its start (startup, resume, fork or /clear; compaction opens nothing) to the cost-state it writes at exit, or to its last own entry when it was interrupted. cost_lineage, cum_cost_start_usd and cum_cost_end_usd are anchors for checking a lineage's continuity; they are never summed. See ADR-0006 A1.",
+      "required": ["spec", "anchor", "start_source", "end_reason", "started_at", "ended_at", "cost_lineage", "cum_cost_start_usd", "cum_cost_end_usd", "forked_from_session_id", "cleared_from_session_id", "sprint_at_start", "recovered", "coverage"],
+      "additionalProperties": false,
+      "properties": {
+        "spec": { "type": "string", "pattern": "^session-lifetime/[1-9][0-9]*$", "description": "Version of the derivation rules, for example session-lifetime/1. Not part of event_id. Copies of one event_id are resolved in the order of ADR-0006 A1 D1.10: the higher spec, then recovered none over a recovered copy, then the more complete coverage." },
+        "anchor": { "type": "string", "pattern": "^(cs:[0-9]+:[0-9]+|open:\\S+)$", "description": "Input to event_id: cs:<startTime>:<totalDuration> of the closing cost-state, both as decimal integers exactly as the cost-state writes them, or open:<first uuid among the lifetime's own entries> for an interrupted lifetime." },
+        "start_source": { "type": "string", "enum": ["startup", "resume", "fork", "clear", "unknown"], "description": "How the lifetime opened; --continue counts as resume." },
+        "end_reason": { "type": ["string", "null"], "maxLength": 40, "description": "The SessionEnd reason when a hook saw it, for example clear or prompt_input_exit; none for an interrupted lifetime; null when the event was derived without the hook's payload." },
+        "started_at": { "type": "string", "format": "date-time", "description": "Earliest timestamp among the lifetime's own entries, UTC." },
+        "ended_at": { "type": "string", "format": "date-time", "description": "Latest timestamp among the lifetime's own entries, UTC; equal to ts." },
+        "cost_lineage": { "type": ["string", "null"], "pattern": "^[0-9]+$", "description": "Anchor: the cost-state startTime in epoch milliseconds. Resumes and forks share it; /clear starts a new one. Null when no cost-state of the lineage is known. Never summed." },
+        "cum_cost_start_usd": { "type": ["number", "null"], "minimum": 0, "description": "Anchor: Claude Code's cumulative cost restored at the start (0 after startup or /clear; the parent's cost at the fork point for a fork). Null when unknown. Never summed." },
+        "cum_cost_end_usd": { "type": ["number", "null"], "minimum": 0, "description": "Anchor: totalCostUSD of the closing cost-state. Null for an interrupted lifetime. Never summed." },
+        "forked_from_session_id": { "type": ["string", "null"], "description": "For a fork: the parent session id when it was found; otherwise null." },
+        "cleared_from_session_id": { "type": ["string", "null"], "description": "For a lifetime opened by /clear: the session it cleared, when known; otherwise null." },
+        "sprint_at_start": { "type": ["integer", "string", "null"], "description": "Sprint context at the lifetime's start; null when no hook observed it. A value that differs from sprint flags a lifetime that spans a sprint change." },
+        "phase_at_start": { "type": ["integer", "null"], "description": "Phase context at the lifetime's start, from .harness/sprint-state.json; null when no hook observed it." },
+        "head_at_start": { "type": ["string", "null"], "description": "Commit sha at the lifetime's start, when observed." },
+        "concurrent": { "type": "boolean", "description": "True when another process appended to the same session file during this lifetime." },
+        "recovered": { "type": "string", "enum": ["none", "at_start", "backfill", "sweep"], "description": "none: written live by the hooks of the process that held the lifetime; at_start: re-derived by a later SessionStart; backfill: by the backfill command; sweep: by a sweep of the transcript directory. An interrupted lifetime is always recovered. Copies of one event_id are resolved in the order of ADR-0006 A1 D1.10: the higher spec, then none over a recovered copy, then the more complete coverage." },
+        "days": {
+          "type": "object",
+          "description": "Only for a lifetime that crosses UTC midnight: requests, tokens and cost per UTC day, two days or more; keys are YYYY-MM-DD. Tokens are binned by request timestamp. cost_usd is this day's share of the event's cost_usd: each model's cost-state cost is split across the days in proportion to the sum of that model's four token counts on each day, and a model with no transcript requests in the lifetime in proportion to all models' tokens. It apportions Claude Code's figure and is not an estimate of unpriced spend; null when the event's cost_usd is null. Day, month and window sums use these bins in place of the event's ts, never both (ADR-0006 A1 D1.10).",
+          "minProperties": 2,
+          "propertyNames": { "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["requests", "usage"],
+            "additionalProperties": false,
+            "properties": {
+              "requests": { "type": "integer", "minimum": 0 },
+              "usage": { "$ref": "#/definitions/usage" },
+              "cost_usd": { "type": ["number", "null"], "minimum": 0 }
+            }
+          }
+        },
+        "coverage": { "$ref": "#/definitions/coverage" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "What the deriver could see for this lifetime. Rollups report these figures next to their sums.",
+      "required": ["subagent_files", "subagent_launches_without_file", "copied_entries_excluded", "fork_parent", "context", "shortfall"],
+      "additionalProperties": false,
+      "properties": {
+        "subagent_files": { "type": "integer", "minimum": 0, "description": "Agent files under <session_id>/subagents/ read for this lifetime." },
+        "subagent_launches_without_file": { "type": "integer", "minimum": 0, "description": "Agent or Task launches in the lifetime with no agent file found." },
+        "copied_entries_excluded": { "type": "integer", "minimum": 0, "description": "Entries a fork copied from its parent, left out of every measure." },
+        "fork_parent": { "type": ["string", "null"], "enum": ["found", "not-found", null], "description": "For a fork: whether the parent's transcript was found; not-found leaves cost_usd null. Null when the lifetime is not a fork." },
+        "context": { "type": "string", "enum": ["observed", "git-history", "unknown"], "description": "Where sprint, phase and head came from: observed by a hook, read from git history, or unknown." },
+        "shortfall": { "type": "array", "items": { "type": "string", "maxLength": 120 }, "description": "model:key pairs where the transcript holds more tokens than the cost-state delta, for example when an interrupted predecessor's requests fell into this lifetime. Empty when none." }
       }
     }
   }

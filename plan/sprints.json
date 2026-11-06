@@ -94,31 +94,38 @@
       "phase": 0,
       "repo": "henka-council",
       "number": 10,
-      "title": "Session diagnostics hook: one event per session into .council/diagnostics.jsonl",
+      "title": "Session diagnostics hook: one event per settled process lifetime into .council/diagnostics.jsonl",
       "features": [
-        "hooks/session-diagnostics.sh on SessionEnd: sums message.usage over the transcript by model and effort, splits sidechain (subagent) usage, counts tool calls by tool from this session's audit entries, counts compactions and subagents from PreCompact and SubagentStart markers, reads the current sprint from .harness/sprint-state.json, appends one kind=session event conforming to cloud-catcher index/diagnostic-event.schema.json",
-        "PreCompact and SubagentStart hooks write minimal marker lines the SessionEnd hook counts (no bodies)",
-        "hooks/enforce-append-only.sh covers .council/diagnostics.jsonl; rotate-audit-log.py handles it the same way",
+        "Stage 1, SessionEnd only (ADR-0006 A1): the SessionEnd hook appends one kind=session event (schema 1.1) per non-empty settled process lifetime, derived by one pure function that a backfill command also calls; a /clear predecessor is settled at its successor's SessionEnd in the same process",
+        "the event per ADR-0006 A1 D1: usage, usage_by_model and sidechain_usage over the lifetime's own requests in the main transcript and the subagent files (each requestId once, fork copies left out); cost_usd = the closing cost-state minus the restored base (a fork's base from cost lineage); cost_state_usage_by_model; counts; the anchors; a UUIDv5 event_id; ts from the entries; a coverage block; sprint and phase from .harness/sprint-state.json at the end",
+        "compactions counted from compact_boundary entries, subagents as the larger of agent files and Agent/Task launches; no PreCompact or SubagentStart marker hooks",
+        "crew guard: with AUTOMATE_RUN set, council hooks write nothing (auto-mate commits a crew's leftovers with git add -A and counts them as changes)",
+        "Stage 2, after Stage 1: a SessionStart hook for the /clear hand-off, the fork base and recovery (re-appending a lifetime whose line is missing under the same event_id; recording an interrupted lifetime with exact tokens and cost_usd null)",
+        "hooks/enforce-append-only.sh covers .council/diagnostics.jsonl; rotate-audit-log.py handles it the same way; a producer skips an event_id already in the ledger or its newest rotated archive",
         "scripts/measure-projection-cost.py appends a kind=projection-cost event when a .council/ exists",
         "schema copy under schemas/diagnostic-event.schema.json kept byte-identical to cloud-catcher's (a test diffs them)",
-        "PowerShell parity or recorded deferral; tests with a fixture transcript whose totals are known"
+        "tests/schemas/diagnostic-event rewritten for schema 1.1: valid session events for settled, interrupted, fork and /clear lifetimes; each invalid session fixture rebuilt as an otherwise valid 1.1 event, so it fails only on its named keyword",
+        "henka-council's CLAUDE.md, README, instructions/controlled-artifacts.md and skills/council-kickoff/SKILL.md say one event per settled process lifetime, written by the hooks and the backfill command (ADR-0006 A1)",
+        "PowerShell parity or recorded deferral; tests with recorded fixture transcripts whose lifetimes and totals are known"
       ],
       "estimated_complexity": "medium",
       "dependencies": [
         "P0-HC-1"
       ],
       "exit_criteria": [
-        "a fixture session ends with exactly one session event whose token totals equal the transcript sum",
+        "the recorded fixtures listed in ADR-0006 A1's Verification yield one session event per non-empty lifetime, with cost_usd and tokens as stated there for the stage shipped",
+        "a redacted fixture of the real cloud session yields five events of 7.1773923, 27.49865245, 0.9899525, 152.047308 and 62.2513088 USD, summing to 249.96461405; the fifth has ts 2026-11-04T22:20:42.265Z, its last subagent entry",
+        "a second firing on the same state appends nothing; with AUTOMATE_RUN set, nothing under .council/ changes",
         "no prompt or response text appears in any event"
       ],
       "level5_decisions": [
         "ratify ADR-0006"
       ],
       "status": {
-        "state": "in-review",
+        "state": "in-progress",
         "ref": "https://github.com/ats-kinoshita-iso/henka-council/pull/28",
-        "date": "2026-10-31",
-        "note": "compactions and subagents are counted from the transcript itself (system compact entries, Agent/Task tool_use blocks); no PreCompact or SubagentStart marker hooks were needed"
+        "date": "2026-11-06",
+        "note": "PR #28 writes one cumulative event per exit; ADR-0006 A1 (D1 to D4 decided by the human 2026-11-06) replaces that with one event per settled process lifetime. The rework ships as a follow-up PR to henka-council #28: Stage 1 SessionEnd-only settled lifetime deltas, then Stage 2 the SessionStart hook"
       }
     },
     {
@@ -156,15 +163,18 @@
         "one headless `claude -p` run with the API key set; confirm the usage line in the Console; record in ADR-0001 addendum",
         "re-validate undocumented agent frontmatter (context: fork, thinking:) against the current Claude Code runtime before the next harness sprint",
         "trine-eval: review the default model and pricing table against the current price list (Opus 5.5 is current; its effort default is medium, set it explicitly)",
-        "auto-mate docs and cloud-setup: pin no-mistakes at v1.48.0"
+        "auto-mate docs and cloud-setup: pin no-mistakes at v1.48.0",
+        "switch on the OpenTelemetry tier for cloud sessions (ADR-0006 A1): confirm Grafana Cloud's free tier, take the account and endpoint from the human, add the host to every cloud environment's network allowlist, set ADR-0006 decision 4's variables in each cloud environment"
       ],
       "estimated_complexity": "low",
       "dependencies": [],
       "exit_criteria": [
-        "ADR-0001 addendum written"
+        "ADR-0001 addendum written",
+        "one cloud test session visible in the OpenTelemetry backend with project and layer attributes"
       ],
       "level5_decisions": [
-        "which surface should spend the credits"
+        "which surface should spend the credits",
+        "the OpenTelemetry account and endpoint for cloud sessions"
       ]
     },
     {
@@ -220,7 +230,7 @@
       "number": 3,
       "title": "Cost and usage next to pass rates",
       "features": [
-        "harness-sprint records per-sprint cost_usd and tokens in sprint-state.json when a session event or run record for the sprint exists (derived, nullable)",
+        "harness-sprint records per-sprint cost_usd and tokens in sprint-state.json: the sum of the settled session events booked to the sprint plus its run records (derived, nullable); a lifetime still open at sprint end is booked when it settles, to the sprint of its ts (ADR-0006 A1; finer splits are an A1 open item)",
         "harness-summary adds cost per PASS sprint, cost per criterion, cache share of input, and compactions per session to the Consistency and ACI sections",
         "the Evaluator transcript trailer gains optional usage fields when the evaluator can observe them"
       ],
@@ -316,7 +326,9 @@
         "ship skipped with status gated and a recorded reason when effective autonomy is 2 or lower",
         "RunRecord.scope echoes the ScopeRef and approval id",
         "docs: cloud division of labor, AUTOMATE_WORKSPACE_ROOT pointing at a cloud-catcher checkout's runs/ in cloud environments",
-        "RunRecord.usage, CrewResult.usage and Verdict.usage persisted with the record; a kind=run event can be derived without re-running anything"
+        "RunRecord.usage, CrewResult.usage and Verdict.usage persisted with the record; a kind=run event can be derived without re-running anything",
+        "crew guard (ADR-0006 A1): set AUTOMATE_RUN for every crew and gate auto-mate starts, so council hooks write nothing into the worktrees it commits with git add -A",
+        "the run record carries each crew's lifetime event (ADR-0006 decision 7 as amended by A1), the source of crew tool counts and compactions"
       ],
       "estimated_complexity": "medium",
       "dependencies": [
@@ -324,7 +336,8 @@
       ],
       "exit_criteria": [
         "Level 1 fixture: gated, no push, reason names the floor",
-        "Level 4 fixture: shipped, record on disk with evidence"
+        "Level 4 fixture: shipped, record on disk with evidence",
+        "a governed fixture crew leaves .council/ unchanged"
       ],
       "level5_decisions": [
         "ratify ADR-0002"
@@ -367,7 +380,8 @@
         "copies new events from each repo's .council/diagnostics.jsonl and derives run/crew/gate events from runs/*.json into index/diagnostics/events-<YYYY-MM>.jsonl, deduplicated by event_id",
         "writes each project's diagnostics rollup block (7-day and 30-day tokens and cost by source, cost per shipped run, cost per PASS sprint, cache share, tool failure rate, compactions and subagents per session)",
         "docs/queries.md: one DuckDB SQL query per question in ADR-0006, each tested against the fixture events",
-        "rollup dedupes on session_id: cost and usage from run records, tool counts and compactions from session events (ADR-0006 item 7)"
+        "rollups sum session events after deduplicating by event_id, never take a session's latest event, and report coverage next to every sum; for a session_id in a run record, cost and usage come from the run record (ADR-0006 items 3 and 7 as amended by A1)",
+        "once P0-OPS-1 has connected the OpenTelemetry backend and ADR-0006 A1's Backstop check has run: for a session with audit-log activity after its last settled lifetime, take the later spend from the backend's api_request events by session.id and time, labelled cost_source backend and reported apart (ADR-0006 A1 D2); the archivist environment (P3-CC-2) needs the backend's query host and a read credential"
       ],
       "estimated_complexity": "medium",
       "dependencies": [
@@ -514,7 +528,7 @@
         "memory decision from index/retrieval-misses.jsonl",
         "PDCA standing question: which component has the current model made unnecessary",
         "retrospective pdca mode reads the project's diagnostics rollup and the cycle's events; harness-summary ACI section cites cost with consistency",
-        "OpenTelemetry tier (ADR-0006 tier 2): choose a backend (Level 5; recommended default Grafana Cloud, alternative Honeycomb; must ingest OTLP metrics and logs), add its host to every cloud environment's network allowlist, set CLAUDE_CODE_ENABLE_TELEMETRY and OTLP exporters in environments and shells with OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<interactive|crew|gate|archivist>, OTEL_METRICS_INCLUDE_REPOSITORY=true and OTEL_METRICS_INCLUDE_ENTRYPOINT=true; prompts and tool details stay redacted"
+        "OpenTelemetry tier (ADR-0006 tier 2) beyond cloud sessions, which get it in P0-OPS-1 (ADR-0006 A1): set CLAUDE_CODE_ENABLE_TELEMETRY and OTLP exporters in shells with OTEL_RESOURCE_ATTRIBUTES=project=<repo>,layer=<interactive|crew|gate|archivist>, OTEL_METRICS_INCLUDE_REPOSITORY=true and OTEL_METRICS_INCLUDE_ENTRYPOINT=true; prompts and tool details stay redacted"
       ],
       "estimated_complexity": "n/a",
       "dependencies": [
@@ -525,7 +539,7 @@
       ],
       "level5_decisions": [
         "each standard-work proposal",
-        "the OpenTelemetry backend, or none"
+        "the OpenTelemetry tier beyond cloud sessions, or none"
       ]
     }
   ],
