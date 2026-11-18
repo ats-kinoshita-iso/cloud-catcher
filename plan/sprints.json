@@ -83,10 +83,10 @@
       ],
       "level5_decisions": [],
       "status": {
-        "state": "in-review",
-        "ref": "https://github.com/ats-kinoshita-iso/henka-council/pull/28",
-        "date": "2026-10-31",
-        "note": "built directly from this plan, not through harness-sprint; Windows wrapper tests run in CI only"
+        "state": "done",
+        "ref": "henka-council #28 (squash f5631d4 on main), with #29 (8087e9e)",
+        "date": "2026-11-18",
+        "note": "built directly from this plan, not through harness-sprint. Review blockers fixed before merge: C01, C02, C04 in #29; C05 (PostToolUseFailure registered) and C06 (andon signals only from a Task/Agent reply, with type and issuer) on #28. Open, non-blocking: C14 (audit logger root from a subdirectory), C15, C22, C34 for the PowerShell audit wrapper, part of C30. Denied calls fire neither PostToolUse nor PostToolUseFailure and are not logged"
       }
     },
     {
@@ -123,9 +123,9 @@
       ],
       "status": {
         "state": "in-progress",
-        "ref": "https://github.com/ats-kinoshita-iso/henka-council/pull/28",
-        "date": "2026-11-06",
-        "note": "PR #28 writes one cumulative event per exit; ADR-0006 A1 (D1 to D4 decided by the human 2026-11-06) replaces that with one event per settled process lifetime. The rework ships as a follow-up PR to henka-council #28: Stage 1 SessionEnd-only settled lifetime deltas, then Stage 2 the SessionStart hook"
+        "ref": "henka-council #30 merged into #28 (squash f5631d4 on main)",
+        "date": "2026-11-18",
+        "note": "Stage 1 (ADR-0006 A1: SessionEnd-only settled lifetime deltas) is on main. Stage 2, the SessionStart hook (/clear hand-off, fork base, recovery, interrupted events), is not started. Checked live on Claude Code 2.1.327 with the plugin loaded: one schema 1.1 event per lifetime, cost equal to total_cost_usd; a plugin cannot raise its own SessionEnd budget (a timeout in hooks.json is ignored)"
       }
     },
     {
@@ -147,10 +147,10 @@
       ],
       "level5_decisions": [],
       "status": {
-        "state": "in-review",
-        "ref": "https://github.com/ats-kinoshita-iso/auto-mate/pull/6",
-        "date": "2026-10-31",
-        "note": "dry-run reports usage null rather than synthetic zeros; a child claude -p inside a cloud session was observed to report the parent's session id, flagged as session_id_inherited"
+        "state": "done",
+        "ref": "auto-mate #6 (merge 33a24ce)",
+        "date": "2026-11-18",
+        "note": "dry-run reports usage null rather than synthetic zeros; a child claude -p inside a cloud session was observed to report the parent's session id, flagged as session_id_inherited. Review fixes before merge: tokens from modelUsage (C09), usage kept on error exits (C10), denied inputs out of the gate trailer (C42); ReviewRecord totals cover gates only, the deep-review agent's spend is not captured (C12); a run killed at its timeout reports nothing"
       }
     },
     {
